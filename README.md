@@ -78,9 +78,9 @@ Este projeto utiliza arquitetura monorepo. Para rodar o ambiente de desenvolvime
 | :---: |
 | *(Imagem da interface será adicionada aqui)* |
 
-| Gestão de Bricks | Gestão de Apostas |
+| Gestão de Bricks |
 | :---: | :---: |
-| *(Imagem da interface será adicionada aqui)* | *(Imagem da interface será adicionada aqui)* |
+| *(Imagem da interface será adicionada aqui)* |
 
 ---
 
