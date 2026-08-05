@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fontes */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono);
+
+  /* Design System (Cores) */
+  --color-background: #121214;
+  --color-surface: #202024;
+  --color-border: #323238;
+  --color-success: #04D361;
+  --color-danger: #F75A68;
+  --color-warning: #FBA94C;
+  --color-brand: #FBBF24;
+}
