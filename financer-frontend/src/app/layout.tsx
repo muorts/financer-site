@@ -1,6 +1,6 @@
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
-import { MenuNavegation } from '../components/layout/MenuNavegation'
+import { MenuNavegation } from '@/components/layout/MenuNavegation'
 
 // Configurando as fontes
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
