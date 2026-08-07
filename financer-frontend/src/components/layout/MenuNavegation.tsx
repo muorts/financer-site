@@ -12,7 +12,8 @@ const modulos = [
     label: 'Dashboard', 
     icon: Home,
     submenus: [
-      {label: "DashBoard", icon: Layers, url: '/' }
+      {label: "DashBoard", icon: Layers, url: '/' },
+      {label: "Cadastro Banco", icon: Plus, url: '/cadastro_bancos'}
     ]
   },
   { 
