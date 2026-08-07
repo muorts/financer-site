@@ -7,10 +7,10 @@
 
   /* Design System (Cores) */
   --color-background: #121214;
-  --color-surface: #202024;
-  --color-border: #323238;
+  --color-surface: #18181a; /* Cinza Escuro -> Menus em contraste com o fundo */
+  --color-border: #323238; /* Cinza Claro -> Bordas*/
   --color-success: #04D361;
   --color-danger: #F75A68;
-  --color-warning: #FBA94C;
-  --color-brand: #FBBF24;
+  --color-warning: #FBA94C; /* Vermelho -> Usado para warnings geralmente */
+  --color-brand: #24a9fb; /* Azul -> Usado para logo e cor thema principal */
 }

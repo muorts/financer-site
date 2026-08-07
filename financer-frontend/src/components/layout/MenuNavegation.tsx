@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { HousePlus, Calculator, ChartCandlestick, Store, BadgeDollarSign, Home, Package, Dices, Wallet, Menu, X, Plus, PieChart, CalendarDays, FileText, WalletCards, ChartColumnStacked, ChartNoAxesCombined, Layers, Warehouse } from 'lucide-react';
-import { SubMenu } from '@/components/ui/SubMenu';
+import { SubMenu } from '@/components/menu/SubMenu';
 
 // cria os sub-modulos apartir de uma lista de objetos 
 const modulos = [
@@ -12,39 +12,39 @@ const modulos = [
     label: 'Dashboard', 
     icon: Home,
     submenus: [
-      {label: "DashBoard", icon: Layers }
+      {label: "DashBoard", icon: Layers, url: '/' }
     ]
   },
   { 
     label: 'Financeiro', 
     icon: Wallet,
     submenus: [
-      {label: "Visualização Geral", icon: PieChart},
-      {label: "Nova Transação", icon: Plus},
-      {label: "Faturas", icon: WalletCards},
-      {label: "Metas e Orçamentos", icon: ChartNoAxesCombined},
-      {label: "Categorias", icon: ChartColumnStacked},
+      {label: "Visualização Geral", icon: PieChart, url: '/financer/visualizacao_geral'},
+      {label: "Nova Transação", icon: Plus, url: '/financer/nova_transacao'},
+      {label: "Faturas", icon: WalletCards, url: '/financer/faturas'},
+      {label: "Metas/Orçamentos", icon: ChartNoAxesCombined, url: '/financer/metas_orcamentos'},
+      {label: "Categorias", icon: ChartColumnStacked, url: '/financer/categorias'},
     ]
   },
   { 
     label: 'Vendas', 
     icon: Package,
     submenus: [
-        {label: "Novo Item", icon: Plus},
-        {label: "Estoque", icon: Warehouse},
-        {label: "Vendas", icon: BadgeDollarSign},
-        {label: "Plataformas", icon: Store},
+        {label: "Novo Item", icon: Plus, url: '/sales/novo_item'},
+        {label: "Estoque", icon: Warehouse, url: '/sales/estoque'},
+        {label: "Vendas", icon: BadgeDollarSign, url: '/sales/vendas'},
+        {label: "Plataformas", icon: Store, url: '/sales/plataformas'},
     ] 
   },
   { 
     label: 'Trading', 
     icon: Dices,
     submenus: [
-      {label: "Trades", icon: ChartCandlestick},
-      {label: "Nova Operação", icon: Plus},
-      {label: "ComprovaBet", icon: FileText},
-      {label: "Calculadora", icon: Calculator},
-      {label: "Casas", icon: HousePlus},
+      {label: "Trades", icon: ChartCandlestick, url: '/trading/trades'},
+      {label: "Nova Operação", icon: Plus, url: '/trading/nova_operacao'},
+      {label: "ComprovaBet", icon: FileText, url: '/trading/comprovabet'},
+      {label: "Calculadora", icon: Calculator, url: '/trading/calculadora'},
+      {label: "Casas", icon: HousePlus, url: '/trading/casas'},
     ] 
   },
   
