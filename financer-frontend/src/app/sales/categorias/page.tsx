@@ -3,44 +3,42 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { 
-  ArrowLeft, Tag, Save, TrendingUp, TrendingDown, 
-  Pencil, Trash2, Utensils, Gamepad2, ShoppingBag, 
-  Coffee, Car, Smartphone, Home, Plane, Heart, Zap 
+  ArrowLeft, Tag, Save, Pencil, Trash2, 
+  Gamepad2, Smartphone, Monitor, HardDrive, 
+  Headphones, ShoppingBag, Cpu, Watch, Camera, Sparkles 
 } from 'lucide-react';
 
-import { CardSelecao } from '@/components/ui/CardSelect'; 
 import { SeletorCores } from '@/components/ui/ColorSelect';
 import { SeletorIcones } from '@/components/ui/IconSelect';
 import { NameInput } from '@/components/ui/NameInput';
 
-// Helper para renderizar o ícone correspondente na listagem
+// Helper para mapear ícones voltados para produtos e hardwares
 const iconeMap: Record<string, any> = {
-  utensils: Utensils,
-  coffee: Coffee,
-  shopping: ShoppingBag,
   gamepad: Gamepad2,
-  car: Car,
   smartphone: Smartphone,
-  home: Home,
-  plane: Plane,
-  heart: Heart,
-  zap: Zap,
+  monitor: Monitor,
+  hardware: HardDrive,
+  headphones: Headphones,
+  bag: ShoppingBag,
+  cpu: Cpu,
+  watch: Watch,
+  camera: Camera,
+  sparkles: Sparkles,
 };
 
-export default function CadastroCategoria() {
-  // Estado com lista simulada de categorias cadastradas
+export default function CategoriasVendas() {
+  // Estado com lista simulada de categorias de vendas e estoque
   const [categorias, setCategorias] = useState([
-    { id: '1', nome: 'Alimentação', tipo: 'saida', cor: 'emerald', icone: 'utensils' },
-    { id: '2', nome: 'Jogos / Lazer', tipo: 'saida', cor: 'purple', icone: 'gamepad' },
-    { id: '3', nome: 'Salário / Vendas', tipo: 'entrada', cor: 'blue', icone: 'shopping' },
+    { id: '1', nome: 'Consoles & Portáteis', cor: 'purple', icone: 'gamepad' },
+    { id: '2', nome: 'Placas de Vídeo / GPU', cor: 'blue', icone: 'cpu' },
+    { id: '3', nome: 'Smartphones & Acessórios', cor: 'emerald', icone: 'smartphone' },
   ]);
 
   // Estados do Formulário
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nome, setNome] = useState('');
-  const [tipo, setTipo] = useState<'saida' | 'entrada'>('saida');
-  const [corSelecionada, setCorSelecionada] = useState('emerald');
-  const [iconeSelecionado, setIconeSelecionado] = useState('utensils');
+  const [corSelecionada, setCorSelecionada] = useState('purple');
+  const [iconeSelecionado, setIconeSelecionado] = useState('gamepad');
 
   // Função para Salvar (Criar ou Atualizar)
   const handleSalvar = () => {
@@ -50,16 +48,15 @@ export default function CadastroCategoria() {
       // Atualiza a categoria existente
       setCategorias(categorias.map(cat => 
         cat.id === editandoId 
-          ? { ...cat, nome, tipo, cor: corSelecionada, icone: iconeSelecionado } 
+          ? { ...cat, nome, cor: corSelecionada, icone: iconeSelecionado } 
           : cat
       ));
       setEditandoId(null);
     } else {
-      // Cria uma nova categoria
+      // Cria uma nova categoria de venda
       const novaCat = {
         id: String(Date.now()),
         nome,
-        tipo,
         cor: corSelecionada,
         icone: iconeSelecionado,
       };
@@ -68,16 +65,14 @@ export default function CadastroCategoria() {
 
     // Limpa o formulário
     setNome('');
-    setTipo('saida');
-    setCorSelecionada('emerald');
-    setIconeSelecionado('utensils');
+    setCorSelecionada('purple');
+    setIconeSelecionado('gamepad');
   };
 
   // Função para carregar dados no form para edição
   const handleEditar = (cat: typeof categorias[0]) => {
     setEditandoId(cat.id);
     setNome(cat.nome);
-    setTipo(cat.tipo as 'saida' | 'entrada');
     setCorSelecionada(cat.cor);
     setIconeSelecionado(cat.icone);
   };
@@ -97,14 +92,14 @@ export default function CadastroCategoria() {
       {/* BLOCO 1: CABEÇALHO */}
       <div className="flex items-center gap-5 p-5 md:p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
         <Link 
-          href="/financeiro/visao-geral" 
+          href="/" 
           className="p-3 transition-colors border rounded-xl bg-[#18181b] border-border hover:border-gray-500 text-gray-400 hover:text-white"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white font-sans">Gerenciar Categorias</h1>
-          <p className="mt-1 text-sm text-gray-400">Cadastre, edite ou exclua suas categorias de lançamentos.</p>
+          <h1 className="text-2xl font-bold text-white font-sans">Categorias de Vendas & Estoque</h1>
+          <p className="mt-1 text-sm text-gray-400">Organize seus produtos, consoles e hardwares por categorias.</p>
         </div>
       </div>
 
@@ -116,11 +111,10 @@ export default function CadastroCategoria() {
 
         <div className="flex flex-col gap-3">
           {categorias.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4 text-center">Nenhuma categoria cadastrada ainda.</p>
+            <p className="text-sm text-gray-500 py-4 text-center">Nenhuma categoria de venda cadastrada ainda.</p>
           ) : (
             categorias.map((cat) => {
               const IconComponent = iconeMap[cat.icone] || Tag;
-              const isEntrada = cat.tipo === 'entrada';
 
               return (
                 <div 
@@ -128,15 +122,10 @@ export default function CadastroCategoria() {
                   className="flex items-center justify-between p-4 border rounded-xl bg-[#18181b]/50 border-border/50 hover:bg-[#18181b] transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-surface border border-border text-white`}>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-surface border border-border text-brand">
                       <IconComponent className="w-5 h-5" />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-white text-sm">{cat.nome}</span>
-                      <span className={`text-xs font-medium mt-0.5 ${isEntrada ? 'text-success' : 'text-danger'}`}>
-                        {isEntrada ? 'Receita (Entrada)' : 'Despesa (Saída)'}
-                      </span>
-                    </div>
+                    <span className="font-medium text-white text-sm">{cat.nome}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -167,14 +156,13 @@ export default function CadastroCategoria() {
         
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">
-            {editandoId ? 'Editar Categoria' : 'Nova Categoria'}
+            {editandoId ? 'Editar Categoria de Venda' : 'Nova Categoria de Venda'}
           </h2>
           {editandoId && (
             <button 
               onClick={() => {
                 setEditandoId(null);
                 setNome('');
-                setTipo('saida');
               }}
               className="text-xs text-gray-400 hover:text-white underline"
             >
@@ -184,41 +172,12 @@ export default function CadastroCategoria() {
         </div>
 
         <NameInput 
-          label="Nome da Categoria"
+          label="Nome da Categoria de Produto"
           icon={Tag}
-          placeholder="ex: Lazer e Games"
+          placeholder="ex: Consoles, Placas de Vídeo, Smartphones..."
           value={nome}
           onChange={(e) => setNome(e.target.value)}
         />
-
-        {/* Tipo (Entrada ou Saída) */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-medium text-gray-300">
-            Qual é o comportamento padrão?
-          </label>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <CardSelecao
-              titulo="Despesa (Saída)"
-              descricao="Gastos em geral, contas, compras e lazer."
-              icon={TrendingDown}
-              ativo={tipo === 'saida'}
-              onClick={() => setTipo('saida')}
-              corTexto="text-danger" 
-              corBorda="border-danger"
-              corFundo="bg-danger/10"
-            />
-            <CardSelecao
-              titulo="Receita (Entrada)"
-              descricao="Salário, lucro de vendas, bolsa, ganhos extras."
-              icon={TrendingUp}
-              ativo={tipo === 'entrada'}
-              onClick={() => setTipo('entrada')}
-              corTexto="text-success" 
-              corBorda="border-success"
-              corFundo="bg-success/10"
-            />
-          </div>
-        </div>
 
         {/* Seleção de Cor Modular */}
         <SeletorCores 
@@ -237,7 +196,7 @@ export default function CadastroCategoria() {
       {/* BLOCO 4: BOTÕES DE AÇÃO */}
       <div className="flex items-center justify-end p-5 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
         <Link 
-          href="/financeiro/visao-geral"
+          href="/"
           className="px-6 py-2.5 text-sm font-medium transition-colors text-gray-400 hover:text-white"
         >
           Voltar

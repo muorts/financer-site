@@ -5,6 +5,8 @@
 import { useState } from 'react';
 import { HousePlus, Calculator, ChartCandlestick, Store, BadgeDollarSign, Home, Package, Dices, Wallet, Menu, X, Plus, PieChart, CalendarDays, FileText, WalletCards, ChartColumnStacked, ChartNoAxesCombined, Layers, Warehouse } from 'lucide-react';
 import { SubMenu } from '@/components/menu/SubMenu';
+import { Logo } from '../ui/logo';
+import { LogoString } from '../ui/logoString';
 
 // cria os sub-modulos apartir de uma lista de objetos 
 const modulos = [
@@ -35,6 +37,7 @@ const modulos = [
         {label: "Estoque", icon: Warehouse, url: '/sales/estoque'},
         {label: "Vendas", icon: BadgeDollarSign, url: '/sales/vendas'},
         {label: "Plataformas", icon: Store, url: '/sales/plataformas'},
+        {label: "Categorias", icon: ChartColumnStacked, url: '/sales/categorias'},
     ] 
   },
   { 
@@ -60,7 +63,7 @@ export function MenuNavegation() {
 
       {/* Topo do app visto pelo celular */}
       <div className="fixed top-0 left-0 z-40 flex items-center justify-between w-full h-16 px-4 border-b md:hidden bg-surface border-border">
-        <span className="text-xl font-bold text-brand">Financer</span>
+        <Logo className="text-xl font-bold text-brand w-15 h-10"></Logo>
         <button onClick={() => setMenuOpen(true)} className="p-2 text-gray-300 hover:text-white">
           <Menu className="w-6 h-6" />
         </button>
@@ -78,10 +81,10 @@ export function MenuNavegation() {
         ${menuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
       `}>
         
-        {/* menu no celular */}
+        {/* menu no celular quando está aberto */}
         <div className="flex items-center justify-between px-4 mt-4 mb-8">
-          <span className="text-2xl font-bold text-brand">Financer</span>
-          <button onClick={() => setMenuOpen(false)} className="p-2 text-gray-400 md:hidden hover:text-white">
+          <LogoString className="text-xl font-bold text-brand w-50 h-20"></LogoString>
+          <button onClick={() => setMenuOpen(false)} className="p-2 text-gray-400 md:hidden hover:text-white mt-4">
             <X className="w-6 h-6" />
           </button>
         </div>
