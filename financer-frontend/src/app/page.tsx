@@ -36,7 +36,7 @@ export default function Dashboard() {
               <FiltroData />
 
               {/* Dropdown Falso para Casas/Categorias */}
-              <div className="flex items-center justify-between gap-4 px-4 py-2.5 border rounded-lg bg-[#18181b] border-border min-w-[200px]">
+              <div className="flex items-center justify-between gap-4 px-4 py-2.5 border rounded-lg bg-[#18181b] border-border min-w-50">
                 <span className="text-sm text-gray-400">Todas as contas</span>
                 <ChevronDown className="w-4 h-4 text-gray-500" />
               </div>

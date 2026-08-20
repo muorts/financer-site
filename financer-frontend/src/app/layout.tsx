@@ -1,10 +1,20 @@
 import { Inter, JetBrains_Mono } from 'next/font/google'
+import type { Metadata } from 'next' // <-- Importação do Metadata
 import './globals.css'
 import { MenuNavegation } from '@/components/layout/MenuNavegation'
 
 // Configurando as fontes
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
+
+// === BLOCO DE METADADOS (Onde a mágica do título e ícone acontece) ===
+export const metadata: Metadata = {
+  title: 'Fincker',
+  description: 'Sistema de gestão financeira e estoque',
+  icons: {
+    icon: '/Vector_Logo.svg', // <-- Força o navegador a buscar o SVG na pasta public
+  },
+}
 
 export default function RootLayout({
   children,

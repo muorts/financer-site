@@ -79,11 +79,11 @@ Este projeto utiliza arquitetura monorepo. Para rodar o ambiente de desenvolvime
 | *(Imagem da interface será adicionada aqui)* |
 
 | Gestão de Bricks | 
-| :---: | :---: |
+| :---: |
 | *(Imagem da interface será adicionada aqui)* |
 
 ---
 
 ## ✒️ Autor
 
-* **Murilo Ortega Pereira** - [GitHub](https://github.com/muorts)
+* **Murilo Ortega Pereira** - [GitHub](https://github.com/muorts) - [Linkedin](www.linkedin.com/in/murilo-ortega-67387b364)

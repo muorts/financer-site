@@ -20,7 +20,7 @@ export default function NovoItemEstoque() {
   const [banco, setBanco] = useState('');
 
   return (
-    <div className="flex flex-col p-4 md:p-6 gap-6 max-w-[800px] mx-auto pb-24">
+    <div className="flex flex-col p-4 md:p-6 gap-6 max-w-200 mx-auto pb-24">
       
       {/* BLOCO 1: CABEÇALHO FLUTUANTE            */}
       <div className="flex items-center gap-5 p-5 md:p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
