@@ -1,17 +1,19 @@
-import { Edit2, Save } from 'lucide-react';
+import { Edit2, Save, CheckCircle2 } from 'lucide-react';
 
 interface RodapeModalOperacaoProps {
   lucro: number;
   isEditing: boolean;
   onEditToggle: (editing: boolean) => void;
   onSave: () => void;
+  onResolveToggle: () => void; // <-- Nova função para abrir o modo de finalizar
 }
 
 export function RodapeModalOperacao({
   lucro,
   isEditing,
   onEditToggle,
-  onSave
+  onSave,
+  onResolveToggle
 }: RodapeModalOperacaoProps) {
   const isLucro = lucro >= 0;
   const corLucro = isLucro ? 'text-success' : 'text-danger';
@@ -48,14 +50,25 @@ export function RodapeModalOperacao({
             </button>
           </>
         ) : (
-          <button 
-            type="button"
-            onClick={() => onEditToggle(true)}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-surface border border-border hover:border-gray-500 text-white rounded-xl transition-all"
-          >
-            <Edit2 className="w-4 h-4" />
-            Editar Valores
-          </button>
+          <>
+            <button 
+              type="button"
+              onClick={() => onEditToggle(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-surface border border-border hover:border-gray-500 text-white rounded-xl transition-all"
+            >
+              <Edit2 className="w-4 h-4" />
+              Editar Valores
+            </button>
+            {/* NOVO BOTÃO DE FINALIZAR */}
+            <button 
+              type="button"
+              onClick={onResolveToggle}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-brand text-background rounded-xl shadow-[0_0_10px_rgba(var(--brand),0.3)] hover:bg-brand/90 transition-all"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Dar Baixa
+            </button>
+          </>
         )}
       </div>
     </div>

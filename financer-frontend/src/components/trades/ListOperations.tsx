@@ -7,14 +7,24 @@ interface ListaOperacoesAtivasProps {
 }
 
 export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
-  // Controle do Modal
   const [tradeSelecionado, setTradeSelecionado] = useState<TradeDetalhado | null>(null);
 
-  // Função simulando o "Save" do Modal (No futuro, vai bater no seu banco de dados)
   const handleSalvarEdicao = (tradeId: string, novasEntradas: any[]) => {
     console.log(`Salvando trade ${tradeId} com as novas entradas:`, novasEntradas);
-    // Aqui você chamaria a API e faria um setTrades para atualizar a tela
-    // ...
+  };
+
+  // === NOVA LÓGICA DE RESOLUÇÃO AQUI ===
+  const handleResolverTrade = (tradeId: string, valorRecebido: number, lucroLiquido: number) => {
+    // Aqui vai entrar o código que chama o Backend Java no futuro
+    console.log(`Dando baixa no Trade ${tradeId}!`);
+    console.log(`Recebeu de volta: R$ ${valorRecebido}`);
+    console.log(`Lucro Real da Operação: R$ ${lucroLiquido}`);
+    
+    // Alerta provisório para você testar na tela
+    alert(`Operação fechada com sucesso!\nLucro Real adicionado à banca: R$ ${lucroLiquido.toFixed(2)}`);
+    
+    // Fecha o modal
+    setTradeSelecionado(null);
   };
 
   return (
@@ -32,10 +42,9 @@ export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
         ) : (
           <div className="flex flex-col gap-3">
             {trades.map(trade => {
-              const isLucro = trade.lucro > 0;
-              const isPerca = trade.lucro < 0;
-              const corValor = isLucro ? 'text-success' : isPerca ? 'text-danger' : 'text-gray-300';
-              const sinal = isLucro ? '+' : '';
+              const isLucro = trade.lucro >= 0;
+              const corValor = isLucro ? 'text-success' : 'text-danger';
+              const sinal = trade.lucro > 0 ? '+' : '';
 
               // Calcula o número de casas envolvidas olhando as entradas
               const casasNomes = Array.from(new Set(trade.entradas.map(e => e.casa))).join(' / ');
@@ -68,12 +77,13 @@ export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
         )}
       </div>
 
-      {/* RENDERIZA O MODAL (Fica invisível até ter um tradeSelecionado) */}
+      {/* MODAL ATUALIZADO COM A FUNÇÃO ONRESOLVE */}
       <ModalDetalhesOperacao 
         trade={tradeSelecionado}
         isOpen={!!tradeSelecionado}
         onClose={() => setTradeSelecionado(null)}
         onSave={handleSalvarEdicao}
+        onResolve={handleResolverTrade} 
       />
     </>
   );
