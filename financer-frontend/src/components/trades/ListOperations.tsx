@@ -14,17 +14,31 @@ export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
   };
 
   // === NOVA LÓGICA DE RESOLUÇÃO AQUI ===
-  const handleResolverTrade = (tradeId: string, valorRecebido: number, lucroLiquido: number) => {
-    // Aqui vai entrar o código que chama o Backend Java no futuro
-    console.log(`Dando baixa no Trade ${tradeId}!`);
-    console.log(`Recebeu de volta: R$ ${valorRecebido}`);
-    console.log(`Lucro Real da Operação: R$ ${lucroLiquido}`);
-    
-    // Alerta provisório para você testar na tela
-    alert(`Operação fechada com sucesso!\nLucro Real adicionado à banca: R$ ${lucroLiquido.toFixed(2)}`);
-    
-    // Fecha o modal
-    setTradeSelecionado(null);
+  const handleResolverTrade = async (tradeId: string, valorRecebido: number, lucroLiquido: number) => {
+    try {
+      // Dispara a requisição para o nosso backend Java
+      const resposta = await fetch(`http://localhost:8080/api/trades/${tradeId}/resolver`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // O DTO do Java espera receber exatamente a variável "valorRecebido"
+        body: JSON.stringify({ valorRecebido }) 
+      });
+
+      if (resposta.ok) {
+        // Sucesso! O Java já subtraiu o investimento, calculou o lucro e mudou o status para FINALIZADO.
+        setTradeSelecionado(null); // Fecha o modal
+        
+        // Recarrega a página para a operação sumir da lista de "Em andamento"
+        // (No futuro podemos usar o estado do React, mas isso fecha o ciclo perfeitamente agora)
+        window.location.reload(); 
+      } else {
+        console.error("Falha ao registrar a baixa no servidor.");
+      }
+    } catch (erro) {
+      console.error("Erro de conexão com a API:", erro);
+    }
   };
 
   return (

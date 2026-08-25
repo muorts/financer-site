@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Lock, Gift, Calendar as CalendarIcon, 
   ChevronLeft, ChevronRight, Ticket, ArrowRightLeft, AlertCircle 
@@ -13,44 +13,8 @@ import { ListaOperacoesAtivas } from '@/components/trades/ListOperations';
 import { DetalhesDiaSelecionado } from '@/components/trades/DaysSelection'; 
 
 // ==========================================
-// DADOS SIMULADOS (Mock)
+// DADOS SIMULADOS DE FREEBETS (Será o próximo passo no backend!)
 // ==========================================
-const TRADES_ATIVOS = [
-  { 
-    id: '1', 
-    jogo: 'Palmeiras x São Paulo', 
-    mercado: 'PA (Pagamento Antecipado)', 
-    lucro: 15.00,
-    valor: 1035.00,
-    entradas: [
-      { id: 'e1', tipo: 'principal' as const, casa: 'Bet365', odd: 2.10, stake: 500 },
-      { id: 'e2', tipo: 'protecao' as const, casa: 'Betano', odd: 1.95, stake: 535 }
-    ]
-  },
-  { 
-    id: '2', 
-    jogo: 'Arsenal x Chelsea', 
-    mercado: 'Missão Qualificativa', 
-    lucro: -5.50,
-    valor: 130.00, 
-    entradas: [
-      { id: 'e3', tipo: 'principal' as const, casa: 'Pinnacle', odd: 1.80, stake: 50 },
-      { id: 'e4', tipo: 'protecao' as const, casa: 'Betfair', odd: 1.45, stake: 80 }
-    ]
-  },
-  { 
-    id: '3', 
-    jogo: 'Flamengo x Fluminense', 
-    mercado: 'Conversão de Freebet', 
-    lucro: 75.00,
-    valor: 100.00, 
-    entradas: [
-      { id: 'e5', tipo: 'principal' as const, casa: 'Betano', odd: 4.50, stake: 50 },
-      { id: 'e6', tipo: 'protecao' as const, casa: 'Betfair', odd: 1.30, stake: 100 }
-    ]
-  }
-];
-
 const FREEBETS = [
   { id: '1', casa: 'Betano', valor: 50, vencimento: '2026-08-20' },
   { id: '2', casa: 'Pinnacle', valor: 100, vencimento: '2026-08-20' },
@@ -58,7 +22,7 @@ const FREEBETS = [
 ];
 
 export default function VisaoTaticaTrades() {
-  // Lógica de Datas para o Calendário (Fixado para Agosto de 2026 para o exemplo)
+  // Lógica de Datas para o Calendário
   const mesAtual = new Date(2026, 7, 18); 
   const diasNoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 0).getDate();
   const primeiroDiaDoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 1).getDay(); 
@@ -67,9 +31,42 @@ export default function VisaoTaticaTrades() {
 
   // Estados
   const [diaSelecionado, setDiaSelecionado] = useState<number | null>(null);
+  
+  // O Estado das operações agora começa vazio e será preenchido pelo Java
+  const [tradesAtivos, setTradesAtivos] = useState<any[]>([]);
+
+  // ==========================================
+  // INTEGRAÇÃO COM O BACKEND JAVA
+  // ==========================================
+  useEffect(() => {
+    fetch('http://localhost:8080/api/trades/andamento')
+      .then(res => res.json())
+      .then(dadosDoJava => {
+        // Precisamos formatar os dados que vêm do banco para encaixar no seu componente
+        const tradesFormatados = dadosDoJava.map((trade: any) => ({
+          id: trade.id,
+          jogo: trade.jogo,
+          mercado: trade.mercado,
+          // Como o trade está em andamento, o lucro real ainda não existe, assumimos 0
+          lucro: trade.lucroLiquidoReal || 0, 
+          valor: trade.valorTotalInvestido || 0,
+          entradas: trade.entradas?.map((entrada: any) => ({
+            id: entrada.id,
+            tipo: entrada.tipo.toLowerCase(), // O Java manda 'PRINCIPAL', o React espera 'principal'
+            casa: entrada.casaAposta?.nome || 'Desconhecida',
+            odd: entrada.odd,
+            stake: entrada.stake
+          })) || []
+        }));
+        
+        setTradesAtivos(tradesFormatados);
+      })
+      .catch(err => console.error("Erro ao buscar trades ativos do banco:", err));
+  }, []);
+
 
   // Cálculos Automáticos dos Cards
-  const capitalInPlay = TRADES_ATIVOS.reduce((acc, curr) => acc + curr.valor, 0);
+  const capitalInPlay = tradesAtivos.reduce((acc, curr) => acc + curr.valor, 0);
   const caixaFreebets = FREEBETS.reduce((acc, curr) => acc + curr.valor, 0);
 
   // Filtra as freebets do dia clicado no calendário
@@ -87,7 +84,7 @@ export default function VisaoTaticaTrades() {
         caminhoVoltar="/" 
       />
 
-      {/* 2. CARDS DE STATUS (Agora Modulares!) */}
+      {/* 2. CARDS DE STATUS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <CardStatus 
           titulo="Capital em Jogo (In-Play)"
@@ -104,7 +101,7 @@ export default function VisaoTaticaTrades() {
         />
       </div>
         
-        {/* 3 e 4. CALENDÁRIO E DETALHES */}
+      {/* 3 e 4. CALENDÁRIO E DETALHES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <CalendarioVencimentos 
           freebets={FREEBETS}
@@ -118,9 +115,8 @@ export default function VisaoTaticaTrades() {
         />
       </div>
 
-
-      {/* LISTA DE OPERAÇÕES MODULAR */}
-      <ListaOperacoesAtivas trades={TRADES_ATIVOS} />
+      {/* LISTA DE OPERAÇÕES CONECTADA AO BANCO */}
+      <ListaOperacoesAtivas trades={tradesAtivos} />
 
     </div>
   );

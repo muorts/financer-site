@@ -1,4 +1,4 @@
-package com.murilo.backend_financer;
+package com.murilo.api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Swords, Target, RefreshCw, Save, Percent } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { CabecalhoPagina } from '@/components/ui/Header';
 import { NameInput } from '@/components/ui/NameInput';
@@ -10,6 +11,8 @@ import { SecaoOperacao } from '@/components/trades/OperationSecao';
 import { SecaoLucro } from '@/components/trades/ProfitSec'; 
 
 export default function NovaOperacao() {
+  const router = useRouter();
+
   // Controle de Abas
   const [tipoOperacao, setTipoOperacao] = useState<TipoOperacao>('arbitragem');
   const [subTipoFreebet, setSubTipoFreebet] = useState<'missao' | 'conversao'>('missao');
@@ -18,7 +21,15 @@ export default function NovaOperacao() {
   const [eventoArbitragem, setEventoArbitragem] = useState('');
   const [eventoFreebet, setEventoFreebet] = useState('');
   const [retencao, setRetencao] = useState('');
-  const [valorLucro, setValorLucro] = useState(''); // <-- Estado para o Lançar Lucro
+  const [valorLucro, setValorLucro] = useState('');
+
+  // Estados dos inputs de Odds e Stakes (Para capturar o que você digita)
+  // Nota: Nos componentes filhos (SecaoOperacao), idealmente você passa os estados de odd/stake principais e de proteção. 
+  // Para simplificar o envio inicial, vamos estruturar o payload com os campos base:
+  const [mainOdd, setMainOdd] = useState('');
+  const [mainStake, setMainStake] = useState('');
+  const [protOdd, setProtOdd] = useState('');
+  const [protStake, setProtStake] = useState('');
 
   // Controle de Proteções Dinâmicas
   const [protecoesArbitragem, setProtecoesArbitragem] = useState([{ id: Date.now() }]);
@@ -29,6 +40,55 @@ export default function NovaOperacao() {
 
   const handleAddProtecaoFreebet = () => setProtecoesFreebet([...protecoesFreebet, { id: Date.now() }]);
   const handleRemoveProtecaoFreebet = (id: number) => setProtecoesFreebet(protecoesFreebet.filter(p => p.id !== id));
+
+  // ==========================================
+  // SALVAR OPERAÇÃO NO BACKEND JAVA
+  // ==========================================
+  const handleRegistrar = async () => {
+    const jogo = tipoOperacao === 'freebet' ? eventoFreebet : eventoArbitragem;
+    if (!jogo.trim()) return;
+
+    // Calcula o valor total investido somando as stakes (exemplo básico)
+    const valorInvestido = parseFloat(mainStake || '0') + parseFloat(protStake || '0');
+
+    // Monta o objeto no formato que o Trade.java e EntradaTrade.java esperam no Java
+    const novoTrade = {
+      jogo: jogo,
+      mercado: tipoOperacao === 'freebet' ? `Freebet (${subTipoFreebet})` : 'Arbitragem / PA',
+      valorTotalInvestido: isNaN(valorInvestido) ? 100.0 : valorInvestido, // Fallback de segurança
+      entradas: [
+        {
+          tipo: "PRINCIPAL",
+          backLay: "BACK",
+          odd: parseFloat(mainOdd || '2.0'),
+          stake: parseFloat(mainStake || '50.0'),
+          isFreebet: tipoOperacao === 'freebet',
+          casaAposta: {
+            // Como o backend precisa de uma casa válida, mandamos um ID temporário ou buscaremos do seletor
+            // Para garantir que salve agora, certifique-se de ter cadastrado uma casa antes!
+            id: "11111111-1111-1111-1111-111111111111" // (Ajustaremos para o seletor real no próximo ajuste)
+          }
+        }
+      ]
+    };
+
+    try {
+      const resposta = await fetch('http://localhost:8080/api/trades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoTrade)
+      });
+
+      if (resposta.ok) {
+        // Sucesso! Redireciona de volta para a Visão Tática
+        router.push('/trades');
+      } else {
+        console.error("Erro ao salvar operação no servidor.");
+      }
+    } catch (erro) {
+      console.error("Erro de conexão:", erro);
+    }
+  };
 
   return (
     <div className="flex flex-col p-4 md:p-6 gap-6 max-w-[800px] mx-auto pb-24">
@@ -133,7 +193,10 @@ export default function NovaOperacao() {
       </div>
 
       <div className="flex justify-end mt-2">
-        <button className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-[0_0_15px_rgba(var(--brand),0.3)]">
+        <button 
+          onClick={handleRegistrar}
+          className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-[0_0_15px_rgba(var(--brand),0.3)]"
+        >
           <Save className="w-5 h-5" /> Registrar Operação
         </button>
       </div>

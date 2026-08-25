@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Building2, Save, Pencil, Trash2, 
   Globe, Swords, ShieldAlert 
@@ -12,32 +12,44 @@ import { NameInput } from '@/components/ui/NameInput';
 import { SeletorIcones, ICONES_DISPONIVEIS } from '@/components/ui/IconSelect';
 import { CardInformacao } from '@/components/ui/CardInformation';
 
-// Tipagem da Casa
+// Tipagem da Casa atualizada para bater com o Java
 interface CasaAposta {
   id: string;
   nome: string;
+  tipo: string;
   cor: string;
   iconeId: string;
 }
 
 export default function CadastroCasas() {
-  // Estado inicial simulando banco de dados
-  const [casas, setCasas] = useState<CasaAposta[]>([
-    { id: '1', nome: 'Bet365', cor: 'emerald', iconeId: 'globe'},
-    { id: '2', nome: 'Betfair', cor: 'yellow', iconeId: 'swords' },
-  ]);
-
+  // 1. Estado inicial agora começa VAZIO, os dados virão do banco real!
+  const [casas, setCasas] = useState<CasaAposta[]>([]);
+  
   // Estados do Formulário
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [corSelecionada, setCorSelecionada] = useState('brand');
   const [iconeSelecionado, setIconeSelecionado] = useState('globe');
 
-  // Função para Salvar
-  const handleSalvar = () => {
+  // ==========================================
+  // BUSCAR DO BANCO AO CARREGAR A PÁGINA
+  // ==========================================
+  useEffect(() => {
+    fetch('http://localhost:8080/api/casas')
+      .then(res => res.json())
+      .then(data => setCasas(data))
+      .catch(err => console.error("Erro ao buscar casas:", err));
+  }, []);
+
+  // ==========================================
+  // SALVAR OU ATUALIZAR NO BANCO
+  // ==========================================
+  const handleSalvar = async () => {
     if (!nome.trim()) return;
 
     if (editandoId) {
+      // (Futuro) Aqui faremos o PUT (Atualizar) quando criarmos a rota no Java
+      // Por enquanto, atualiza só na tela
       setCasas(casas.map(c => 
         c.id === editandoId 
           ? { ...c, nome, cor: corSelecionada, iconeId: iconeSelecionado } 
@@ -45,13 +57,29 @@ export default function CadastroCasas() {
       ));
       setEditandoId(null);
     } else {
-      const novaCasa: CasaAposta = {
-        id: String(Date.now()),
+      // Prepara o pacote para mandar para o Java
+      const novaCasa = {
         nome,
+        tipo: "TRADICIONAL", // Mandando o tipo padrão para não dar erro no banco
         cor: corSelecionada,
         iconeId: iconeSelecionado,
       };
-      setCasas([...casas, novaCasa]);
+
+      try {
+        const resposta = await fetch('http://localhost:8080/api/casas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(novaCasa) // Transforma em JSON
+        });
+
+        if (resposta.ok) {
+          const casaSalvaBanco = await resposta.json();
+          // Adiciona a casa que o Java retornou (com o ID gerado no PostgreSQL)
+          setCasas([...casas, casaSalvaBanco]);
+        }
+      } catch (erro) {
+        console.error("Erro ao salvar a casa:", erro);
+      }
     }
 
     // Resetar formulário
@@ -67,9 +95,23 @@ export default function CadastroCasas() {
     setIconeSelecionado(casa.iconeId);
   };
 
-  const handleExcluir = (id: string) => {
-    setCasas(casas.filter(c => c.id !== id));
-    if (editandoId === id) setEditandoId(null);
+  // ==========================================
+  // EXCLUIR DO BANCO DE DADOS
+  // ==========================================
+  const handleExcluir = async (id: string) => {
+    try {
+      const resposta = await fetch(`http://localhost:8080/api/casas/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (resposta.ok) {
+        // Se o Java excluiu com sucesso, tiramos da tela
+        setCasas(casas.filter(c => c.id !== id));
+        if (editandoId === id) setEditandoId(null);
+      }
+    } catch (erro) {
+      console.error("Erro ao excluir a casa:", erro);
+    }
   };
 
   // Função auxiliar para renderizar o ícone correto na lista
