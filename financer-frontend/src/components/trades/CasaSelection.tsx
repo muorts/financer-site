@@ -1,33 +1,60 @@
+"use client";
+
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Globe, Target, Swords, Zap, Star } from 'lucide-react';
+import { ChevronDown, Globe, Target, Swords, Zap, Star, Building2 } from 'lucide-react';
 
 // ==========================================
-// MOCK: CASAS CADASTRADAS (Com ícones e cores)
-// Isso refletirá exatamente o seu banco de dados depois
+// INTERFACE DA CASA (Vinda do Backend)
 // ==========================================
-export const CASAS_CADASTRADAS = [
-  { id: 'bet365', nome: 'Bet365', corText: 'text-emerald-500', corBg: 'bg-emerald-500/10', icone: Globe },
-  { id: 'betano', nome: 'Betano', corText: 'text-orange-500', corBg: 'bg-orange-500/10', icone: Target },
-  { id: 'betfair', nome: 'Betfair', corText: 'text-yellow-500', corBg: 'bg-yellow-500/10', icone: Swords },
-  { id: 'pinnacle', nome: 'Pinnacle', corText: 'text-blue-500', corBg: 'bg-blue-500/10', icone: Zap },
-  { id: 'outra', nome: 'Outra Casa', corText: 'text-gray-400', corBg: 'bg-gray-400/10', icone: Star },
-];
+interface CasaAposta {
+  id: string;
+  nome: string;
+  cor: string;
+  iconeId: string;
+}
 
+// Props agora recebem o "onChange" para enviar o ID escolhido para cima
 interface SeletorCasaApostaProps {
   label?: string;
   tema?: 'brand' | 'orange' | 'gray' | 'success';
   tamanho?: 'sm' | 'md';
+  value?: string; // O ID da casa atualmente selecionada
+  onChange?: (casaId: string) => void; // Função que avisa o pai da mudança
 }
+
+// Mapa rápido para renderizar os ícones dinamicamente
+const getIcone = (iconeId: string) => {
+  const icones: Record<string, any> = {
+    globe: Globe,
+    target: Target,
+    swords: Swords,
+    zap: Zap,
+    star: Star,
+  };
+  return icones[iconeId] || Building2;
+};
 
 export function SeletorCasaAposta({ 
   label = "Casa de Aposta", 
   tema = "brand",
-  tamanho = "sm"
+  tamanho = "sm",
+  value,
+  onChange
 }: SeletorCasaApostaProps) {
   
   const [isOpen, setIsOpen] = useState(false);
-  const [casaSelecionada, setCasaSelecionada] = useState<typeof CASAS_CADASTRADAS[0] | null>(null);
+  const [casas, setCasas] = useState<CasaAposta[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ==========================================
+  // BUSCAR CASAS DO BANCO DE DADOS
+  // ==========================================
+  useEffect(() => {
+    fetch('http://localhost:8080/api/casas')
+      .then(res => res.json())
+      .then(data => setCasas(data))
+      .catch(err => console.error("Erro ao buscar casas no seletor:", err));
+  }, []);
 
   // Fecha o dropdown se clicar fora dele
   useEffect(() => {
@@ -39,6 +66,16 @@ export function SeletorCasaAposta({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Descobre qual é a casa completa baseada no ID (value) que foi passado
+  const casaSelecionada = casas.find(c => c.id === value);
+
+  const handleSelect = (casa: CasaAposta) => {
+    if (onChange) {
+      onChange(casa.id); // Manda o UUID oficial pro pai!
+    }
+    setIsOpen(false);
+  };
 
   // Cores da borda baseadas no tema do bloco
   const corBorda = {
@@ -55,7 +92,7 @@ export function SeletorCasaAposta({
     <div className="flex flex-col gap-2 relative" ref={dropdownRef}>
       <label className={cssLabel}>{label}</label>
       
-      {/* INPUT CUSTOMIZADO (Botão que abre o dropdown) */}
+      {/* INPUT CUSTOMIZADO */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -63,8 +100,12 @@ export function SeletorCasaAposta({
       >
         {casaSelecionada ? (
           <div className="flex items-center gap-2">
-            <div className={`p-1 rounded-md ${casaSelecionada.corBg} ${casaSelecionada.corText}`}>
-              <casaSelecionada.icone className={tamanho === 'sm' ? "w-3 h-3" : "w-4 h-4"} />
+            {/* Renderiza a cor dinâmica do banco */}
+            <div className={`p-1 rounded-md bg-${casaSelecionada.cor}-500/10 text-${casaSelecionada.cor}-500`}>
+              {(() => {
+                const Icone = getIcone(casaSelecionada.iconeId);
+                return <Icone className={tamanho === 'sm' ? "w-3 h-3" : "w-4 h-4"} />;
+              })()}
             </div>
             <span className={tamanho === 'sm' ? "text-sm" : "text-base font-medium"}>
               {casaSelecionada.nome}
@@ -78,24 +119,28 @@ export function SeletorCasaAposta({
         <ChevronDown className={`text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''} ${tamanho === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />
       </button>
 
-      {/* MENU DROPDOWN */}
+      {/* MENU DROPDOWN CONECTADO AO BANCO */}
       {isOpen && (
-        <div className="absolute top-[100%] left-0 w-full mt-1 p-1 bg-[#18181b] border border-border/80 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95">
-          {CASAS_CADASTRADAS.map((casa) => (
-            <button
-              key={casa.id}
-              onClick={() => {
-                setCasaSelecionada(casa);
-                setIsOpen(false);
-              }}
-              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors text-left"
-            >
-              <div className={`p-1.5 rounded-md ${casa.corBg} ${casa.corText}`}>
-                <casa.icone className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-medium text-white">{casa.nome}</span>
-            </button>
-          ))}
+        <div className="absolute top-[100%] left-0 w-full mt-1 p-1 bg-[#18181b] border border-border/80 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto">
+          {casas.length === 0 ? (
+            <div className="p-3 text-sm text-center text-gray-500">Nenhuma casa cadastrada</div>
+          ) : (
+            casas.map((casa) => {
+              const Icone = getIcone(casa.iconeId);
+              return (
+                <button
+                  key={casa.id}
+                  onClick={() => handleSelect(casa)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors text-left"
+                >
+                  <div className={`p-1.5 rounded-md bg-${casa.cor}-500/10 text-${casa.cor}-500`}>
+                    <Icone className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-medium text-white">{casa.nome}</span>
+                </button>
+              );
+            })
+          )}
         </div>
       )}
     </div>

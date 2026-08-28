@@ -3,6 +3,7 @@ package com.murilo.api.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.UUID;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 @Entity
@@ -31,10 +32,12 @@ public class EntradaTrade {
     // A qual Trade essa entrada pertence
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trade_id", nullable = false)
+    @JsonIgnore 
     private Trade trade;
 
     // Em qual Casa de Aposta essa entrada foi feita
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "casa_id", nullable = false)
     private CasaAposta casaAposta;
+
 }

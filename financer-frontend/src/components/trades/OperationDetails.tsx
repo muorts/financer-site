@@ -49,7 +49,9 @@ export function ModalDetalhesOperacao({ trade, isOpen, onClose, onSave, onResolv
   if (!isOpen || !trade) return null;
 
   const handleAtualizarEntrada = (id: string, campo: 'odd' | 'stake', valor: string) => {
-    setEntradasEditadas(prev => prev.map(ent => ent.id === id ? { ...ent, [campo]: Number(valor) } : ent));
+    // Transforma "50,50" em 50.50 para o Java entender perfeitamente
+    const numeroLimpo = parseFloat(valor.replace(',', '.')) || 0;
+    setEntradasEditadas(prev => prev.map(ent => ent.id === id ? { ...ent, [campo]: numeroLimpo } : ent));
   };
 
   const handleSalvar = () => {

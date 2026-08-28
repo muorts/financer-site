@@ -11,7 +11,17 @@ interface BlocoOperacaoProps {
   oddPlaceholder?: string;
   valorLabel?: string;
   valorPlaceholder?: string;
-  children?: ReactNode; // Permite colocar campos extras no final do bloco (ex: retenção)
+  children?: ReactNode;
+
+  // ==========================================
+  // NOVAS PROPS (A ponte de dados!)
+  // ==========================================
+  casaId?: string;
+  onChangeCasa?: (id: string) => void;
+  odd?: string;
+  onChangeOdd?: (valor: string) => void;
+  stake?: string;
+  onChangeStake?: (valor: string) => void;
 }
 
 export function BlocoOperacao({
@@ -22,7 +32,14 @@ export function BlocoOperacao({
   oddPlaceholder,
   valorLabel,
   valorPlaceholder,
-  children
+  children,
+  // Recebendo as novas props
+  casaId,
+  onChangeCasa,
+  odd,
+  onChangeOdd,
+  stake,
+  onChangeStake
 }: BlocoOperacaoProps) {
   
   // Mapa de estilos baseado no tema escolhido
@@ -52,13 +69,23 @@ export function BlocoOperacao({
         </button>
       )}
       
-      <SeletorCasaAposta tema={tema} />
+      {/* LIGANDO OS FIOS DO SELETOR DA CASA */}
+      <SeletorCasaAposta 
+        tema={tema} 
+        value={casaId} 
+        onChange={onChangeCasa} 
+      />
       
+      {/* LIGANDO OS FIOS DAS ODDS E VALORES */}
       <InputCotacaoValor 
         tema={tema}
         oddPlaceholder={oddPlaceholder}
         valorLabel={valorLabel}
         valorPlaceholder={valorPlaceholder}
+        oddValue={odd}
+        onChangeOdd={onChangeOdd}
+        stakeValue={stake}
+        onChangeStake={onChangeStake}
       />
 
       {/* ÁREA PARA CONTEÚDO EXTRA */}

@@ -1,11 +1,11 @@
+import { useState } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Tipagem básica para as freebets que o calendário vai receber
-interface Freebet {
+export interface Freebet {
   id: string;
   casa: string;
   valor: number;
-  vencimento: string;
+  vencimento: string; // Formato esperado: "YYYY-MM-DD"
 }
 
 interface CalendarioVencimentosProps {
@@ -15,12 +15,31 @@ interface CalendarioVencimentosProps {
 }
 
 export function CalendarioVencimentos({ freebets, diaSelecionado, onSelectDia }: CalendarioVencimentosProps) {
-  // Lógica de Datas para o Calendário (Fixado para Agosto de 2026 no nosso mock)
-  const mesAtual = new Date(2026, 7, 18); // Agosto (0-indexed: 7)
-  const diasNoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 0).getDate();
-  const primeiroDiaDoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 1).getDay(); // 0 = Dom, 1 = Seg...
+  const hoje = new Date();
+  
+  // Estado para controlar qual mês estamos visualizando
+  const [dataVisualizacao, setDataVisualizacao] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+
+  const irParaMesAnterior = () => {
+    setDataVisualizacao(new Date(dataVisualizacao.getFullYear(), dataVisualizacao.getMonth() - 1, 1));
+  };
+
+  const irParaProximoMes = () => {
+    setDataVisualizacao(new Date(dataVisualizacao.getFullYear(), dataVisualizacao.getMonth() + 1, 1));
+  };
+
+  // Matemática do Calendário
+  const anoAtual = dataVisualizacao.getFullYear();
+  const mesAtual = dataVisualizacao.getMonth();
+  const diasNoMes = new Date(anoAtual, mesAtual + 1, 0).getDate();
+  const primeiroDiaDoMes = new Date(anoAtual, mesAtual, 1).getDay();
+  
   const diasArray = Array.from({ length: diasNoMes }, (_, i) => i + 1);
   const espacosVazios = Array.from({ length: primeiroDiaDoMes }, (_, i) => i);
+
+  // Formatação do título (ex: Agosto 2026)
+  const nomeMes = dataVisualizacao.toLocaleDateString('pt-BR', { month: 'long' });
+  const tituloMes = `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)} ${anoAtual}`;
 
   return (
     <div className="lg:col-span-2 flex flex-col p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
@@ -30,11 +49,11 @@ export function CalendarioVencimentos({ freebets, diaSelecionado, onSelectDia }:
           <h2 className="text-lg font-bold text-white">Vencimento de Freebets</h2>
         </div>
         <div className="flex items-center gap-3">
-          <button className="p-1 text-gray-400 hover:text-white transition-colors">
+          <button onClick={irParaMesAnterior} className="p-1 text-gray-400 hover:text-white transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <span className="text-sm font-medium text-gray-300">Agosto 2026</span>
-          <button className="p-1 text-gray-400 hover:text-white transition-colors">
+          <span className="text-sm font-medium text-gray-300 min-w-[100px] text-center">{tituloMes}</span>
+          <button onClick={irParaProximoMes} className="p-1 text-gray-400 hover:text-white transition-colors">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -54,10 +73,14 @@ export function CalendarioVencimentos({ freebets, diaSelecionado, onSelectDia }:
         ))}
         
         {diasArray.map(dia => {
-          // Verifica se tem freebet vencendo neste dia
-          const temFreebet = freebets.some(fb => parseInt(fb.vencimento.split('-')[2]) === dia);
+          // Verifica se tem freebet vencendo neste dia EXATO (ano e mês iguais)
+          const temFreebet = freebets.some(fb => {
+            const [fbAno, fbMes, fbDia] = fb.vencimento.split('-');
+            return parseInt(fbDia) === dia && parseInt(fbMes) === mesAtual + 1 && parseInt(fbAno) === anoAtual;
+          });
+          
           const isSelecionado = diaSelecionado === dia;
-          const isHoje = dia === 18; // Simulando dia de hoje
+          const isHoje = dia === hoje.getDate() && mesAtual === hoje.getMonth() && anoAtual === hoje.getFullYear();
 
           return (
             <button
@@ -72,7 +95,6 @@ export function CalendarioVencimentos({ freebets, diaSelecionado, onSelectDia }:
               }`}
             >
               {dia}
-              {/* O Famoso Ponto Laranja de Aviso */}
               {temFreebet && (
                 <span className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${isSelecionado ? 'bg-background' : 'bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)]'}`}></span>
               )}

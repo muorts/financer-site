@@ -113,3 +113,43 @@ export function calcularGoatAvancado(linhas: LinhaAposta[]): ResultadoCalculador
 
   return { linhasProcessadas, totalInvestidoReal, roiTotal };
 }
+
+export function calcularLucroProjetado(entradas: any[], mercado: string, custoInicial: number): number {
+  if (!entradas || entradas.length === 0) return 0;
+
+  const mercadoStr = (mercado || "").toLowerCase();
+  const isConversao = mercadoStr.includes('conversão') || mercadoStr.includes('conversao');
+  const isMissao = mercadoStr.includes('missão') || mercadoStr.includes('missao');
+
+  // 1. CUSTO REAL DA OPERAÇÃO
+  let custoReal = custoInicial;
+  if (isConversao) {
+    // Na conversão, a primeira stake (Freebet) não sai do bolso, só as proteções
+    custoReal = entradas.reduce((acc, curr, index) => index === 0 ? acc : acc + curr.stake, 0);
+  } else if (custoReal <= 0) {
+    custoReal = entradas.reduce((acc, curr) => acc + curr.stake, 0);
+  }
+
+  // 2. CÁLCULO DE HEDGE BLINDADO
+  const lucrosPossiveis = entradas.map((entrada, index) => {
+    
+    // A MÁGICA DA CORREÇÃO AQUI:
+    let isFreebet = entrada.isFreebet;
+    
+    // Se a palavra "missao" está no mercado, força a ser dinheiro real, mesmo que o banco diga o contrário.
+    if (isMissao) {
+      isFreebet = false; 
+    } else if (isConversao && index === 0) {
+      isFreebet = true; // Na conversão, a principal é sempre voucher.
+    }
+
+    // Se é freebet, não devolve a stake (odd - 1). Se é real, a stake volta integral (odd * stake).
+    const retorno = isFreebet
+      ? (entrada.odd - 1) * entrada.stake
+      : entrada.odd * entrada.stake;
+
+    return retorno - custoReal;
+  });
+
+  return Math.min(...lucrosPossiveis);
+}

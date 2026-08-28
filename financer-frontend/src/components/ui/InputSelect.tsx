@@ -27,7 +27,7 @@ export function InputSelect({ label, icon: Icon, placeholder, value, onClick }: 
           placeholder={placeholder}
           value={value}
           readOnly // Garante que o teclado do celular não abra ao clicar
-          className="w-full py-3 pl-12 pr-10 text-white transition-colors border rounded-xl bg-[#18181b] border-border group-hover:border-gray-500 focus:outline-none cursor-pointer placeholder:text-gray-600"
+          className="w-full py-3 pl-12 pr-10 text-gray-600 transition-colors border rounded-xl bg-[#18181b] border-border group-hover:border-gray-500 focus:outline-none cursor-pointer placeholder:text-gray-600"
         />
         
         {/* Ícone da Direita (Setinha) */}

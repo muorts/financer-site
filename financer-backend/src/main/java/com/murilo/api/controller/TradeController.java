@@ -1,12 +1,14 @@
 package com.murilo.api.controller;
 
 import com.murilo.api.dto.request.ResolverTradeRequest;
+import com.murilo.api.model.EntradaTrade;
 import com.murilo.api.model.Trade;
 import com.murilo.api.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.murilo.api.repository.TradeRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -48,4 +50,19 @@ public class TradeController {
         Trade tradeFinalizado = tradeService.resolverTrade(id, request.getValorRecebido());
         return ResponseEntity.ok(tradeFinalizado);
     }
+
+    // ==========================================
+    // ROTA PARA SALVAR A EDIÇÃO DE ODDS E STAKES
+    // ==========================================
+    @PutMapping("/{id}/entradas")
+    public ResponseEntity<?> atualizarEntradas(@PathVariable java.util.UUID id, @RequestBody java.util.List<com.murilo.api.model.EntradaTrade> entradasAtualizadas) {
+        try {
+            com.murilo.api.model.Trade tradeAtualizado = tradeService.atualizarEntradas(id, entradasAtualizadas);
+            return ResponseEntity.ok(tradeAtualizado);
+        } catch (Exception e) {
+            e.printStackTrace(); // Vai imprimir o erro no terminal se algo der errado
+            return ResponseEntity.badRequest().body("Erro ao atualizar: " + e.getMessage());
+        }
+    }
 }
+

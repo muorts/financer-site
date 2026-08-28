@@ -1,11 +1,16 @@
 package com.murilo.api.service;
 
+import com.murilo.api.model.CasaAposta;
+import com.murilo.api.model.EntradaTrade;
+import com.murilo.api.model.FreebetVoucher;
 import com.murilo.api.model.Trade;
+import com.murilo.api.repository.FreebetVoucherRepository;
 import com.murilo.api.repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional; // <-- Importação do Transactional aqui!
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +18,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TradeService {
 
-    private final TradeRepository tradeRepository;
+    // <-- O tradeRepository declarado corretamente aqui!
+    private final TradeRepository tradeRepository; 
+    private final FreebetVoucherRepository freebetVoucherRepository;
 
     public List<Trade> listarTradesEmAndamento() {
         return tradeRepository.findByStatus("EM_ANDAMENTO");
@@ -25,14 +32,16 @@ public class TradeService {
 
     @Transactional
     public Trade abrirTrade(Trade trade) {
-        trade.setStatus("EM_ANDAMENTO");
-        
-        // Garante que o valor total investido é maior que zero
-        if (trade.getValorTotalInvestido() == null || trade.getValorTotalInvestido() <= 0) {
-            throw new IllegalArgumentException("O valor investido deve ser maior que zero.");
+        // Se vier do Frontend já FINALIZADO (Lucro Avulso), respeita o status. Se não, é EM_ANDAMENTO.
+        if (trade.getStatus() == null || !trade.getStatus().equals("FINALIZADO")) {
+            trade.setStatus("EM_ANDAMENTO");
         }
         
-        // Relaciona as entradas ao Trade pai para o Hibernate salvar em cascata
+        // Permite custo zero (ex: Bônus de cassino não tiram dinheiro do bolso)
+        if (trade.getValorTotalInvestido() == null || trade.getValorTotalInvestido() < 0) {
+            throw new IllegalArgumentException("O valor investido não pode ser negativo.");
+        }
+        
         if (trade.getEntradas() != null) {
             trade.getEntradas().forEach(entrada -> entrada.setTrade(trade));
         }
@@ -40,29 +49,67 @@ public class TradeService {
         return tradeRepository.save(trade);
     }
 
-    // ========================================================
-    // A LÓGICA DE DAR BAIXA NA OPERAÇÃO (Cálculo de Lucro)
-    // ========================================================
     @Transactional
     public Trade resolverTrade(UUID tradeId, Double valorRecebido) {
-        // 1. Busca a operação no banco de dados
         Trade trade = tradeRepository.findById(tradeId)
-                .orElseThrow(() -> new RuntimeException("Operação não encontrada com o ID informado."));
+                .orElseThrow(() -> new RuntimeException("Operação não encontrada."));
 
-        // 2. Proteção: Verifica se já não foi finalizada antes
         if ("FINALIZADO".equals(trade.getStatus())) {
             throw new IllegalStateException("Esta operação já foi finalizada.");
         }
 
-        // 3. A Matemática: Lucro Líquido = (O que voltou) - (O que foi gasto em todas as casas)
         Double custoTotal = trade.getValorTotalInvestido();
         Double lucroLiquido = valorRecebido - custoTotal;
 
-        // 4. Atualiza os dados da operação
         trade.setLucroLiquidoReal(lucroLiquido);
         trade.setStatus("FINALIZADO");
 
-        // 5. Salva no banco de dados e retorna a operação atualizada
+        // GATILHO DA FREEBET
+        if (trade.getValorFreebetEsperada() != null && trade.getValorFreebetEsperada() > 0) {
+            CasaAposta casaPrincipal = trade.getEntradas().stream()
+                .filter(e -> "PRINCIPAL".equalsIgnoreCase(e.getTipo()))
+                .findFirst()
+                .map(EntradaTrade::getCasaAposta)
+                .orElse(null);
+
+            if (casaPrincipal != null) {
+                FreebetVoucher voucher = new FreebetVoucher();
+                voucher.setValor(trade.getValorFreebetEsperada());
+                voucher.setCasaAposta(casaPrincipal);
+                voucher.setStatus("PENDENTE");
+                voucher.setDataVencimento(LocalDate.now()); // Lança no dia atual
+                
+                freebetVoucherRepository.save(voucher);
+            }
+        }
+
+        return tradeRepository.save(trade);
+    }
+
+    // ==========================================
+    // NOVO MÉTODO DE SALVAR EDIÇÃO
+    // ==========================================
+    @Transactional
+    public Trade atualizarEntradas(UUID tradeId, List<EntradaTrade> novasEntradas) {
+        Trade trade = tradeRepository.findById(tradeId)
+                .orElseThrow(() -> new RuntimeException("Operação não encontrada."));
+
+        // Atualiza os valores exatos
+        for (EntradaTrade entradaAntiga : trade.getEntradas()) {
+            for (EntradaTrade entradaNova : novasEntradas) {
+                if (entradaAntiga.getId().equals(entradaNova.getId())) {
+                    entradaAntiga.setOdd(entradaNova.getOdd());
+                    entradaAntiga.setStake(entradaNova.getStake());
+                }
+            }
+        }
+
+        // Recalcula o Custo Total
+        Double novoCustoTotal = trade.getEntradas().stream()
+                .mapToDouble(EntradaTrade::getStake)
+                .sum();
+        trade.setValorTotalInvestido(novoCustoTotal);
+
         return tradeRepository.save(trade);
     }
 }

@@ -33,6 +33,10 @@ public class Trade {
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao = LocalDateTime.now();
 
+    //Guarda o valor da freebet que será gerada no futuro
+    @Column(name = "valor_freebet_esperada")
+    private Double valorFreebetEsperada;
+
     // Relacionamento: Um Trade tem várias entradas
     @OneToMany(mappedBy = "trade", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EntradaTrade> entradas;

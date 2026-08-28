@@ -3,8 +3,12 @@ import { Trophy, ShieldCheck, Plus } from 'lucide-react';
 import { NameInput } from '@/components/ui/NameInput';
 import { BlocoOperacao } from './OperationBlock';
 
-interface Protecao {
+// Expandimos a interface da Proteção para ela aguentar os dados reais
+export interface Protecao {
   id: number;
+  casaId?: string;
+  odd?: string;
+  stake?: string;
 }
 
 interface SecaoOperacaoProps {
@@ -20,7 +24,17 @@ interface SecaoOperacaoProps {
   mainOddPlaceholder?: string;
   mainValorLabel?: string;
   mainValorPlaceholder?: string;
-  childrenPrincipal?: ReactNode; // Para "injetar" a Retenção quando necessário
+  childrenPrincipal?: ReactNode;
+
+  // ==========================================
+  // NOVAS PROPS: Estados da Entrada Principal
+  // ==========================================
+  mainCasaId?: string;
+  onChangeMainCasa?: (id: string) => void;
+  mainOdd?: string;
+  onChangeMainOdd?: (valor: string) => void;
+  mainStake?: string;
+  onChangeMainStake?: (valor: string) => void;
 
   // Dados das Proteções
   protecoes: Protecao[];
@@ -28,6 +42,13 @@ interface SecaoOperacaoProps {
   onRemoveProtecao: (id: number) => void;
   protecaoOddPlaceholder?: string;
   protecaoValorPlaceholder?: string;
+
+  // ==========================================
+  // NOVAS PROPS: Estados das Proteções
+  // ==========================================
+  onChangeProtecaoCasa?: (id: number, casaId: string) => void;
+  onChangeProtecaoOdd?: (id: number, odd: string) => void;
+  onChangeProtecaoStake?: (id: number, stake: string) => void;
 }
 
 export function SecaoOperacao({
@@ -43,11 +64,25 @@ export function SecaoOperacao({
   mainValorPlaceholder,
   childrenPrincipal,
 
+  // Recebendo os dados da entrada principal
+  mainCasaId,
+  onChangeMainCasa,
+  mainOdd,
+  onChangeMainOdd,
+  mainStake,
+  onChangeMainStake,
+
   protecoes,
   onAddProtecao,
   onRemoveProtecao,
   protecaoOddPlaceholder,
-  protecaoValorPlaceholder
+  protecaoValorPlaceholder,
+
+  // Recebendo as funções das proteções
+  onChangeProtecaoCasa,
+  onChangeProtecaoOdd,
+  onChangeProtecaoStake
+
 }: SecaoOperacaoProps) {
   
   return (
@@ -71,7 +106,14 @@ export function SecaoOperacao({
           tema={mainTema} 
           oddPlaceholder={mainOddPlaceholder} 
           valorLabel={mainValorLabel}
-          valorPlaceholder={mainValorPlaceholder} 
+          valorPlaceholder={mainValorPlaceholder}
+          // Ligando os fios da Entrada Principal!
+          casaId={mainCasaId}
+          onChangeCasa={onChangeMainCasa}
+          odd={mainOdd}
+          onChangeOdd={onChangeMainOdd}
+          stake={mainStake}
+          onChangeStake={onChangeMainStake}
         >
           {childrenPrincipal}
         </BlocoOperacao>
@@ -87,6 +129,13 @@ export function SecaoOperacao({
               oddPlaceholder={protecaoOddPlaceholder}
               valorPlaceholder={protecaoValorPlaceholder}
               onRemove={() => onRemoveProtecao(prot.id)}
+              // Ligando os fios de cada Proteção individualmente!
+              casaId={prot.casaId}
+              onChangeCasa={(casaId) => onChangeProtecaoCasa && onChangeProtecaoCasa(prot.id, casaId)}
+              odd={prot.odd}
+              onChangeOdd={(odd) => onChangeProtecaoOdd && onChangeProtecaoOdd(prot.id, odd)}
+              stake={prot.stake}
+              onChangeStake={(stake) => onChangeProtecaoStake && onChangeProtecaoStake(prot.id, stake)}
             />
           ))}
 

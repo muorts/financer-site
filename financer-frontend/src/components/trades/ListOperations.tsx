@@ -9,8 +9,35 @@ interface ListaOperacoesAtivasProps {
 export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
   const [tradeSelecionado, setTradeSelecionado] = useState<TradeDetalhado | null>(null);
 
-  const handleSalvarEdicao = (tradeId: string, novasEntradas: any[]) => {
-    console.log(`Salvando trade ${tradeId} com as novas entradas:`, novasEntradas);
+  // Essa função vai ser passada para o onSave do seu ModalDetalhesOperacao
+  const handleSalvarEdicao = async (tradeId: string, novasEntradas: any[]) => {
+    try {
+      // 1. Limpa os dados para garantir que o Java vai entender (transforma string em número se precisar)
+      const payloadLimpo = novasEntradas.map(ent => ({
+        id: ent.id,
+        odd: typeof ent.odd === 'string' ? parseFloat(ent.odd.toString().replace(',', '.')) : ent.odd,
+        stake: typeof ent.stake === 'string' ? parseFloat(ent.stake.toString().replace(',', '.')) : ent.stake
+      }));
+
+      // 2. Dispara pro Java
+      const resposta = await fetch(`http://localhost:8080/api/trades/${tradeId}/entradas`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadLimpo)
+      });
+
+      if (resposta.ok) {
+        // Deu certo! Recarrega a página para puxar do banco e recalcular o HEDGE
+        window.location.reload(); 
+      } else {
+        // Se o Java barrar, nós veremos o porquê
+        const erroMsg = await resposta.text();
+        alert("O Java recusou a edição: " + erroMsg);
+      }
+    } catch (erro) {
+      alert("Erro de conexão com o backend!");
+      console.error(erro);
+    }
   };
 
   // === NOVA LÓGICA DE RESOLUÇÃO AQUI ===

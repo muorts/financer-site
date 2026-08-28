@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { Swords, Target, RefreshCw, Save, Percent } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Swords, Target, RefreshCw, Save, Percent, Ticket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { CabecalhoPagina } from '@/components/ui/Header';
@@ -9,6 +9,8 @@ import { NameInput } from '@/components/ui/NameInput';
 import { SeletorTipoOperacao, TipoOperacao } from '@/components/trades/Operationtype';
 import { SecaoOperacao } from '@/components/trades/OperationSecao';
 import { SecaoLucro } from '@/components/trades/ProfitSec'; 
+import { InputSelect } from '@/components/ui/InputSelect'; 
+import { calcularLucroProjetado } from '@/utils/calculadoraTrade'; 
 
 export default function NovaOperacao() {
   const router = useRouter();
@@ -22,54 +24,175 @@ export default function NovaOperacao() {
   const [eventoFreebet, setEventoFreebet] = useState('');
   const [retencao, setRetencao] = useState('');
   const [valorLucro, setValorLucro] = useState('');
+  const [valorFreebetEsperada, setValorFreebetEsperada] = useState('');
 
-  // Estados dos inputs de Odds e Stakes (Para capturar o que você digita)
-  // Nota: Nos componentes filhos (SecaoOperacao), idealmente você passa os estados de odd/stake principais e de proteção. 
-  // Para simplificar o envio inicial, vamos estruturar o payload com os campos base:
+  // ==========================================
+  // ESTADOS DA ENTRADA PRINCIPAL
+  // ==========================================
+  const [mainCasaId, setMainCasaId] = useState('');
   const [mainOdd, setMainOdd] = useState('');
   const [mainStake, setMainStake] = useState('');
-  const [protOdd, setProtOdd] = useState('');
-  const [protStake, setProtStake] = useState('');
 
-  // Controle de Proteções Dinâmicas
-  const [protecoesArbitragem, setProtecoesArbitragem] = useState([{ id: Date.now() }]);
-  const [protecoesFreebet, setProtecoesFreebet] = useState([{ id: Date.now() + 1 }]);
+  // Estados para o Seletor Customizado de Freebets
+  const [freebetsPendentes, setFreebetsPendentes] = useState<any[]>([]);
+  const [freebetSelecionada, setFreebetSelecionada] = useState<string>('nova');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // NOVO: Controle do menu suspenso
 
-  const handleAddProtecaoArbitragem = () => setProtecoesArbitragem([...protecoesArbitragem, { id: Date.now() }]);
+  // ==========================================
+  // CONTROLE DE PROTEÇÕES DINÂMICAS
+  // ==========================================
+  const [protecoesArbitragem, setProtecoesArbitragem] = useState<any[]>([{ id: 1, casaId: '', odd: '', stake: '' }]);
+  const [protecoesFreebet, setProtecoesFreebet] = useState<any[]>([{ id: 2, casaId: '', odd: '', stake: '' }]);
+
+  const handleAddProtecaoArbitragem = () => setProtecoesArbitragem([...protecoesArbitragem, { id: Date.now(), casaId: '', odd: '', stake: '' }]);
   const handleRemoveProtecaoArbitragem = (id: number) => setProtecoesArbitragem(protecoesArbitragem.filter(p => p.id !== id));
 
-  const handleAddProtecaoFreebet = () => setProtecoesFreebet([...protecoesFreebet, { id: Date.now() }]);
+  const handleAddProtecaoFreebet = () => setProtecoesFreebet([...protecoesFreebet, { id: Date.now(), casaId: '', odd: '', stake: '' }]);
   const handleRemoveProtecaoFreebet = (id: number) => setProtecoesFreebet(protecoesFreebet.filter(p => p.id !== id));
 
+  const updateProtecaoArbitragem = (id: number, campo: string, valor: string) => {
+    setProtecoesArbitragem(prev => prev.map(p => p.id === id ? { ...p, [campo]: valor } : p));
+  };
+
+  const updateProtecaoFreebet = (id: number, campo: string, valor: string) => {
+    setProtecoesFreebet(prev => prev.map(p => p.id === id ? { ...p, [campo]: valor } : p));
+  };
+
+  useEffect(() => {
+    fetch('http://localhost:8080/api/freebets/pendentes')
+      .then(res => res.json())
+      .then(dados => setFreebetsPendentes(dados))
+      .catch(err => console.error("Erro ao buscar freebets:", err));
+  }, []);
+
   // ==========================================
-  // SALVAR OPERAÇÃO NO BACKEND JAVA
+  // CÁLCULO AUTOMÁTICO DE RETENÇÃO (USANDO O MOTOR CENTRAL)
   // ==========================================
+  useEffect(() => {
+    if (tipoOperacao === 'freebet' && subTipoFreebet === 'conversao') {
+      const parseNum = (val: string) => parseFloat(val.replace(',', '.')) || 0;
+      const stakePrincipal = parseNum(mainStake);
+
+      if (stakePrincipal > 0) {
+        
+        // 1. Monta o array de entradas exatamente como a sua Calculadora exige
+        const entradasParaCalculadora = [
+          { stake: stakePrincipal, odd: parseNum(mainOdd), isFreebet: true, tipo: 'principal' },
+          ...protecoesFreebet.map(p => ({
+            stake: parseNum(p.stake),
+            odd: parseNum(p.odd),
+            isFreebet: false,
+            tipo: 'protecao'
+          }))
+        ];
+
+        // 2. Evita mostrar lucro negativo enquanto o usuário ainda está digitando a primeira proteção
+        const temProtecaoValida = protecoesFreebet.some(p => parseNum(p.stake) > 0 && parseNum(p.odd) > 0);
+        
+        let menorLucro = 0;
+        if (temProtecaoValida) {
+          // 3. Chama o SEU motor matemático. (Mandamos 0 no custo inicial para a calculadora somar sozinha)
+          menorLucro = calcularLucroProjetado(entradasParaCalculadora, 'Conversão', 0);
+        }
+
+        // 4. A Retenção é apenas o Lucro Garantido dividido pelo valor do Voucher original
+        const percentualRetencao = (menorLucro / stakePrincipal) * 100;
+        
+        if (isFinite(percentualRetencao)) {
+          setRetencao(percentualRetencao.toFixed(2).replace('.', ','));
+        }
+      } else {
+        setRetencao('');
+      }
+    }
+  }, [tipoOperacao, subTipoFreebet, mainStake, mainOdd, protecoesFreebet]);
+
   const handleRegistrar = async () => {
+    const parseNumber = (valor: string) => {
+      if (!valor) return 0;
+      return parseFloat(valor.replace(',', '.'));
+    };
+
+    // ==========================================
+    // ROTA EXPRESSA: LUCRO / PERDA DIRETA
+    // ==========================================
+    if (tipoOperacao === 'lucro') {
+      const valorFinal = parseNumber(valorLucro);
+      
+      // Exige apenas a descrição (ex: "Roleta") e o valor
+      if (valorFinal === 0 || !eventoArbitragem.trim()) {
+        alert("Preencha a origem do lucro/perda e o valor!");
+        return;
+      }
+
+      const tradeAvulso = {
+        jogo: eventoArbitragem, 
+        mercado: 'Lucro/Perda Avulsa',
+        // Se for perda (red), consideramos o valor como o investimento perdido
+        valorTotalInvestido: valorFinal < 0 ? Math.abs(valorFinal) : 0,
+        lucroLiquidoReal: valorFinal,
+        status: 'FINALIZADO', // Passa reto pelas operações em andamento
+        entradas: [] // Não precisa de odd ou stake detalhada
+      };
+
+      try {
+        const res = await fetch('http://localhost:8080/api/trades', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tradeAvulso)
+        });
+        if (res.ok) router.push('./trades');
+      } catch (err) {
+        console.error("Erro:", err);
+      }
+      return; // Interrompe a função aqui para não rodar o código de arbitragem
+    }
+
+    // ==========================================
+    // ROTA PADRÃO: ARBITRAGEM E FREEBET
+    // ==========================================
     const jogo = tipoOperacao === 'freebet' ? eventoFreebet : eventoArbitragem;
-    if (!jogo.trim()) return;
+    
+    if (!jogo.trim() || !mainCasaId) {
+      alert("Preencha o nome do jogo e selecione a casa principal!");
+      return;
+    }
 
-    // Calcula o valor total investido somando as stakes (exemplo básico)
-    const valorInvestido = parseFloat(mainStake || '0') + parseFloat(protStake || '0');
+    const entradasParaOJava = [
+      {
+        tipo: "PRINCIPAL",
+        backLay: "BACK",
+        odd: parseNumber(mainOdd),
+        stake: parseNumber(mainStake),
+        isFreebet: tipoOperacao === 'freebet',
+        casaAposta: { id: mainCasaId } 
+      }
+    ];
 
-    // Monta o objeto no formato que o Trade.java e EntradaTrade.java esperam no Java
+    const protecoesAtivas = tipoOperacao === 'freebet' ? protecoesFreebet : protecoesArbitragem;
+
+    protecoesAtivas.forEach(prot => {
+      if (prot.casaId && prot.stake) {
+        entradasParaOJava.push({
+          tipo: "PROTECAO",
+          backLay: "LAY",
+          odd: parseNumber(prot.odd),
+          stake: parseNumber(prot.stake),
+          isFreebet: false,
+          casaAposta: { id: prot.casaId }
+        });
+      }
+    });
+
+    const valorInvestido = entradasParaOJava.reduce((total, entrada) => total + entrada.stake, 0);
+
     const novoTrade = {
       jogo: jogo,
       mercado: tipoOperacao === 'freebet' ? `Freebet (${subTipoFreebet})` : 'Arbitragem / PA',
-      valorTotalInvestido: isNaN(valorInvestido) ? 100.0 : valorInvestido, // Fallback de segurança
-      entradas: [
-        {
-          tipo: "PRINCIPAL",
-          backLay: "BACK",
-          odd: parseFloat(mainOdd || '2.0'),
-          stake: parseFloat(mainStake || '50.0'),
-          isFreebet: tipoOperacao === 'freebet',
-          casaAposta: {
-            // Como o backend precisa de uma casa válida, mandamos um ID temporário ou buscaremos do seletor
-            // Para garantir que salve agora, certifique-se de ter cadastrado uma casa antes!
-            id: "11111111-1111-1111-1111-111111111111" // (Ajustaremos para o seletor real no próximo ajuste)
-          }
-        }
-      ]
+      valorTotalInvestido: valorInvestido,
+      valorFreebetEsperada: (tipoOperacao === 'freebet' && subTipoFreebet === 'missao') 
+                             ? parseNumber(valorFreebetEsperada) : 0.0,
+      entradas: entradasParaOJava
     };
 
     try {
@@ -78,25 +201,49 @@ export default function NovaOperacao() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoTrade)
       });
-
-      if (resposta.ok) {
-        // Sucesso! Redireciona de volta para a Visão Tática
-        router.push('/trades');
-      } else {
-        console.error("Erro ao salvar operação no servidor.");
-      }
+      if (resposta.ok) router.push('./trades'); 
     } catch (erro) {
-      console.error("Erro de conexão:", erro);
+      console.error("Erro:", erro);
     }
   };
 
+  const handleSelecionarFreebet = (id: string) => {
+    setFreebetSelecionada(id);
+    setIsDropdownOpen(false); // Fecha o menu ao selecionar
+    
+    if (id !== 'nova') {
+      const fb = freebetsPendentes.find(f => f.id === id);
+      if (fb) {
+        setMainStake(fb.valor.toString()); 
+        if (fb.casaId) setMainCasaId(fb.casaId); 
+      }
+    } else {
+      setMainStake('');
+      setMainCasaId('');
+    }
+  };
+
+  // Pega os dados da freebet selecionada para mostrar no InputSelect
+  const fbAtiva = freebetsPendentes.find(f => f.id === freebetSelecionada);
+  const textoInputSelect = freebetSelecionada === 'nova' 
+    ? 'Nova Freebet' 
+    : `${fbAtiva?.casa} - R$ ${fbAtiva?.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
   return (
-    <div className="flex flex-col p-4 md:p-6 gap-6 max-w-[800px] mx-auto pb-24">
+    <div className="flex flex-col p-4 md:p-6 gap-6 max-w-200 mx-auto pb-24 relative">
       
+      {/* Overlay invisível para fechar o dropdown ao clicar fora */}
+      {isDropdownOpen && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => setIsDropdownOpen(false)}
+        />
+      )}
+
       <CabecalhoPagina 
         titulo="Nova Operação" 
         descricao="Registre arbitragens, freebets ou lucros imprevistos."
-        caminhoVoltar="/trades" 
+        caminhoVoltar="./trades" 
       />
 
       <SeletorTipoOperacao 
@@ -106,28 +253,33 @@ export default function NovaOperacao() {
 
       <div className="flex flex-col gap-8 p-6 md:p-8 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
         
-        {/* ABA: ARBITRAGEM E PA */}
         {tipoOperacao === 'arbitragem' && (
           <SecaoOperacao 
             eventoNome={eventoArbitragem}
             onChangeEvento={setEventoArbitragem}
             eventoPlaceholder="ex: Palmeiras x Corinthians"
-            
             mainTitulo="Entrada Principal"
             mainIcon={Swords}
             mainTema="brand"
             mainOddPlaceholder="2.10"
             mainValorPlaceholder="R$ 500,00"
-            
+            mainCasaId={mainCasaId}
+            onChangeMainCasa={setMainCasaId}
+            mainOdd={mainOdd}
+            onChangeMainOdd={setMainOdd}
+            mainStake={mainStake}
+            onChangeMainStake={setMainStake}
             protecoes={protecoesArbitragem}
             onAddProtecao={handleAddProtecaoArbitragem}
             onRemoveProtecao={handleRemoveProtecaoArbitragem}
             protecaoOddPlaceholder="1.95"
             protecaoValorPlaceholder="R$ 535,00"
+            onChangeProtecaoCasa={(id, valor) => updateProtecaoArbitragem(id, 'casaId', valor)}
+            onChangeProtecaoOdd={(id, valor) => updateProtecaoArbitragem(id, 'odd', valor)}
+            onChangeProtecaoStake={(id, valor) => updateProtecaoArbitragem(id, 'stake', valor)}
           />
         )}
 
-        {/* ABA: FREEBETS */}
         {tipoOperacao === 'freebet' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2">
             
@@ -150,6 +302,40 @@ export default function NovaOperacao() {
               </button>
             </div>
 
+            {/* SELETOR CUSTOMIZADO DE FREEBETS */}
+            {subTipoFreebet === 'conversao' && (
+              <div className="relative z-50 animate-in fade-in">
+                <InputSelect 
+                  label="Vincular Freebet do Cofre"
+                  icon={Ticket}
+                  placeholder="Selecione uma freebet..."
+                  value={textoInputSelect}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                />
+
+                {/* Dropdown Menu Estilizado */}
+                {isDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-[105%] mt-1 bg-[#18181b] border border-border rounded-xl shadow-xl overflow-hidden z-50">
+                    <div 
+                      className="px-4 py-3 text-sm text-gray-400 hover:bg-white/5 cursor-pointer border-b border-border/50"
+                      onClick={() => handleSelecionarFreebet('nova')}
+                    >
+                      Nova Freebet (Preencher Manualmente)
+                    </div>
+                    {freebetsPendentes.map(fb => (
+                      <div 
+                        key={fb.id}
+                        className="px-4 py-3 text-sm font-bold text-success hover:bg-white/5 cursor-pointer"
+                        onClick={() => handleSelecionarFreebet(fb.id)}
+                      >
+                        {fb.casa} - R$ {fb.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <SecaoOperacao 
               eventoNome={eventoFreebet}
               onChangeEvento={setEventoFreebet}
@@ -162,24 +348,69 @@ export default function NovaOperacao() {
               mainValorLabel={subTipoFreebet === 'missao' ? "Custo (R$)" : "Valor Freebet (R$)"}
               mainValorPlaceholder="R$ 50,00"
               
+              mainCasaId={mainCasaId}
+              mainOdd={mainOdd}
+              onChangeMainOdd={setMainOdd}
+              mainStake={mainStake}
+              
+              // ==========================================
+              // TRAVAS DE SEGURANÇA (BLOQUEIO DE VALORES)
+              // ==========================================
+              onChangeMainCasa={(valor) => {
+                if (subTipoFreebet === 'conversao' && freebetSelecionada !== 'nova') return; // Bloqueia a edição
+                setMainCasaId(valor);
+              }}
+              onChangeMainStake={(valor) => {
+                if (subTipoFreebet === 'conversao' && freebetSelecionada !== 'nova') return; // Bloqueia a edição
+                setMainStake(valor);
+              }}
+
               protecoes={protecoesFreebet}
               onAddProtecao={handleAddProtecaoFreebet}
               onRemoveProtecao={handleRemoveProtecaoFreebet}
               protecaoOddPlaceholder="1.45"
               protecaoValorPlaceholder="R$ 130,00"
+              onChangeProtecaoCasa={(id, valor) => updateProtecaoFreebet(id, 'casaId', valor)}
+              onChangeProtecaoOdd={(id, valor) => updateProtecaoFreebet(id, 'odd', valor)}
+              onChangeProtecaoStake={(id, valor) => updateProtecaoFreebet(id, 'stake', valor)}
               
               childrenPrincipal={
-                subTipoFreebet === 'conversao' && (
-                  <div className="mt-1 border-t border-orange-500/20 pt-4">
-                    <NameInput 
-                      label="Retenção Estimada (%)" 
-                      icon={Percent}
-                      placeholder="ex: 75" 
-                      value={retencao}
-                      onChange={(e) => setRetencao(e.target.value)}
-                    />
-                  </div>
-                )
+                <>
+                  {subTipoFreebet === 'missao' && (
+                    <div className="mt-1 border-t border-orange-500/20 pt-4">
+                      <div className="flex flex-col gap-2 relative">
+                        <label className="text-xs font-medium text-orange-500 flex items-center gap-1">
+                          <Target className="w-3 h-3" /> Recompensa Esperada (Valor da Freebet)
+                        </label>
+                        <input 
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="R$ 50,00"
+                          value={valorFreebetEsperada}
+                          onChange={(e) => setValorFreebetEsperada(e.target.value)}
+                          className="w-full py-2 px-3 text-sm font-mono font-bold text-white bg-black/50 border border-orange-500/30 rounded-lg outline-none focus:border-orange-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {subTipoFreebet === 'conversao' && (
+                    <div className="mt-1 border-t border-success/20 pt-4 animate-in fade-in">
+                      <div className="flex flex-col gap-2 relative">
+                        <label className="text-xs font-medium text-success flex items-center gap-1">
+                          <Percent className="w-3 h-3" /> Retenção Estimada (Tempo Real)
+                        </label>
+                        <input 
+                          type="text"
+                          readOnly
+                          placeholder="0,00%"
+                          value={retencao ? `${retencao}%` : ''}
+                          className="w-full py-2 px-3 text-sm font-mono font-bold text-success bg-success/10 border border-success/30 rounded-lg outline-none cursor-not-allowed transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               }
             />
           </div>
@@ -187,7 +418,16 @@ export default function NovaOperacao() {
 
         {/* ABA: LANÇAR LUCRO DIRETO */}
         {tipoOperacao === 'lucro' && (
-          <SecaoLucro valor={valorLucro} onChangeValor={setValorLucro} />
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2">
+            <NameInput 
+              label="Origem da Operação" 
+              icon={Target}
+              placeholder="ex: Roleta Betano, Aposta com Amigos..." 
+              value={eventoArbitragem} // Reutilizamos o state para economizar código
+              onChange={(e) => setEventoArbitragem(e.target.value)}
+            />
+            <SecaoLucro valor={valorLucro} onChangeValor={setValorLucro} />
+          </div>
         )}
 
       </div>
@@ -200,7 +440,6 @@ export default function NovaOperacao() {
           <Save className="w-5 h-5" /> Registrar Operação
         </button>
       </div>
-
     </div>
   );
 }
