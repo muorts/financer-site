@@ -19,7 +19,7 @@ export function DetalhesDiaSelecionado({ diaSelecionado, freebetsDoDia, onDelete
   // Estado 1: Nenhum dia clicado
   if (!diaSelecionado) {
     return (
-      <div className="flex flex-col items-center justify-center p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm min-h-[250px] text-center">
+      <div className="flex flex-col items-center justify-center p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm min-h-62.5 text-center">
         <Ticket className="w-12 h-12 text-gray-500 mb-3 opacity-20" />
         <p className="text-sm font-medium text-gray-400">Selecione um dia no calendário para ver os detalhes.</p>
       </div>
@@ -28,7 +28,7 @@ export function DetalhesDiaSelecionado({ diaSelecionado, freebetsDoDia, onDelete
 
   // Estado 2: Dia clicado (Com ou sem freebets)
   return (
-    <div className="flex flex-col p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm min-h-[250px]">
+    <div className="flex flex-col p-6 border bg-surface/40 border-border/80 rounded-2xl shadow-sm min-h-62.5">
       <h3 className="text-sm font-bold text-white mb-4 pb-4 border-b border-border/50 flex items-center justify-between">
         <span>Freebets do dia {diaSelecionado}</span>
         <span className="px-2 py-0.5 bg-orange-500/20 text-orange-500 rounded-md text-xs font-bold">

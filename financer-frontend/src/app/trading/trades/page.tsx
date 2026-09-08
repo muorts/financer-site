@@ -105,7 +105,7 @@ export default function VisaoTaticaTrades() {
     : [];
 
   return (
-    <div className="flex flex-col p-4 md:p-6 gap-6 max-w-[900px] mx-auto pb-24">
+    <div className="flex flex-col p-4 md:p-6 gap-6 max-w-225 mx-auto pb-24">
       
       <CabecalhoPagina 
         titulo="Visão Tática (Trades)" 

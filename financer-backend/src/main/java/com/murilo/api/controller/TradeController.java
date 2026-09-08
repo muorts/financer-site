@@ -1,14 +1,12 @@
 package com.murilo.api.controller;
 
 import com.murilo.api.dto.request.ResolverTradeRequest;
-import com.murilo.api.model.EntradaTrade;
 import com.murilo.api.model.Trade;
 import com.murilo.api.service.TradeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.murilo.api.repository.TradeRepository;
 
 import java.util.List;
 import java.util.UUID;

@@ -121,7 +121,7 @@ export function SeletorCasaAposta({
 
       {/* MENU DROPDOWN CONECTADO AO BANCO */}
       {isOpen && (
-        <div className="absolute top-[100%] left-0 w-full mt-1 p-1 bg-[#18181b] border border-border/80 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 w-full mt-1 p-1 bg-[#18181b] border border-border/80 rounded-xl shadow-xl z-50 animate-in fade-in zoom-in-95 max-h-60 overflow-y-auto">
           {casas.length === 0 ? (
             <div className="p-3 text-sm text-center text-gray-500">Nenhuma casa cadastrada</div>
           ) : (

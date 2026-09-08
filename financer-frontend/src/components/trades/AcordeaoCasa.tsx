@@ -114,7 +114,7 @@ export function AcordeaoCasa({ casa }: AcordeaoCasaProps) {
                   }[t.tipo];
 
                   return (
-                    <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={t.id} className="hover:bg-white/2 transition-colors">
                       <td className="px-5 py-3.5 text-sm text-gray-400 whitespace-nowrap">{t.data}</td>
                       <td className="px-5 py-3.5 text-sm font-medium text-white">{t.descricao}</td>
                       <td className="px-5 py-3.5">

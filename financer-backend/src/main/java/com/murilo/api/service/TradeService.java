@@ -87,24 +87,50 @@ public class TradeService {
     }
 
     // ==========================================
-    // NOVO MÉTODO DE SALVAR EDIÇÃO
+    // NOVO MÉTODO DE SALVAR EDIÇÃO (COM ADIÇÃO E EXCLUSÃO)
     // ==========================================
     @Transactional
     public Trade atualizarEntradas(UUID tradeId, List<EntradaTrade> novasEntradas) {
         Trade trade = tradeRepository.findById(tradeId)
                 .orElseThrow(() -> new RuntimeException("Operação não encontrada."));
 
-        // Atualiza os valores exatos
-        for (EntradaTrade entradaAntiga : trade.getEntradas()) {
-            for (EntradaTrade entradaNova : novasEntradas) {
-                if (entradaAntiga.getId().equals(entradaNova.getId())) {
-                    entradaAntiga.setOdd(entradaNova.getOdd());
-                    entradaAntiga.setStake(entradaNova.getStake());
-                }
+        List<UUID> idsParaManter = novasEntradas.stream()
+                .map(EntradaTrade::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+
+        // 1. Remove quem foi deletado
+        trade.getEntradas().removeIf(entradaAntiga -> 
+                !"PRINCIPAL".equalsIgnoreCase(entradaAntiga.getTipo()) && 
+                entradaAntiga.getId() != null && 
+                !idsParaManter.contains(entradaAntiga.getId())
+        );
+
+        // 2. Atualiza e Adiciona
+        for (EntradaTrade entradaNova : novasEntradas) {
+            // Trava de segurança para o Java não explodir com o banco
+            if (entradaNova.getCasaAposta() == null || entradaNova.getCasaAposta().getId() == null) {
+                throw new IllegalArgumentException("Todas as entradas precisam ter uma Casa de Aposta válida.");
+            }
+
+            if (entradaNova.getId() != null) {
+                trade.getEntradas().stream()
+                        .filter(e -> e.getId().equals(entradaNova.getId()))
+                        .findFirst()
+                        .ifPresent(e -> {
+                            e.setOdd(entradaNova.getOdd());
+                            e.setStake(entradaNova.getStake());
+                            e.setCasaAposta(entradaNova.getCasaAposta()); // O SEGREDO: AGORA PERMITE MUDAR A CASA!
+                        });
+            } else {
+                entradaNova.setTrade(trade);
+                entradaNova.setTipo("PROTECAO");
+                entradaNova.setBackLay("LAY");
+                entradaNova.setIsFreebet(false);
+                trade.getEntradas().add(entradaNova);
             }
         }
 
-        // Recalcula o Custo Total
         Double novoCustoTotal = trade.getEntradas().stream()
                 .mapToDouble(EntradaTrade::getStake)
                 .sum();

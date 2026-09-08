@@ -12,14 +12,20 @@ export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
   // Essa função vai ser passada para o onSave do seu ModalDetalhesOperacao
   const handleSalvarEdicao = async (tradeId: string, novasEntradas: any[]) => {
     try {
-      // 1. Limpa os dados para garantir que o Java vai entender (transforma string em número se precisar)
+      // TRAVA DE SEGURANÇA NO FRONTEND
+      const temCasaVazia = novasEntradas.some(ent => !ent.casaAposta || !ent.casaAposta.id);
+      if (temCasaVazia) {
+        alert("Atenção: Selecione a Casa de Aposta em todas as proteções antes de salvar.");
+        return; 
+      }
+
       const payloadLimpo = novasEntradas.map(ent => ({
-        id: ent.id,
+        id: String(ent.id).startsWith('temp-') ? null : ent.id,
         odd: typeof ent.odd === 'string' ? parseFloat(ent.odd.toString().replace(',', '.')) : ent.odd,
-        stake: typeof ent.stake === 'string' ? parseFloat(ent.stake.toString().replace(',', '.')) : ent.stake
+        stake: typeof ent.stake === 'string' ? parseFloat(ent.stake.toString().replace(',', '.')) : ent.stake,
+        casaAposta: ent.casaAposta // O FIO QUE FALTAVA LIGAR!
       }));
 
-      // 2. Dispara pro Java
       const resposta = await fetch(`http://localhost:8080/api/trades/${tradeId}/entradas`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -27,10 +33,8 @@ export function ListaOperacoesAtivas({ trades }: ListaOperacoesAtivasProps) {
       });
 
       if (resposta.ok) {
-        // Deu certo! Recarrega a página para puxar do banco e recalcular o HEDGE
         window.location.reload(); 
       } else {
-        // Se o Java barrar, nós veremos o porquê
         const erroMsg = await resposta.text();
         alert("O Java recusou a edição: " + erroMsg);
       }
