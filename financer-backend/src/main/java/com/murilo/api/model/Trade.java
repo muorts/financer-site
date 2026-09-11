@@ -38,6 +38,7 @@ public class Trade {
     private Double valorFreebetEsperada;
 
     // Relacionamento: Um Trade tem várias entradas
+    // O CascadeType.ALL e o orphanRemoval=true garantem que se o Trade for excluído, as Entradas dele também serão destruídas.
     @OneToMany(mappedBy = "trade", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EntradaTrade> entradas;
 }

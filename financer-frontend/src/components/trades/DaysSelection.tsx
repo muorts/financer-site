@@ -10,12 +10,19 @@ export interface Freebet {
 interface DetalhesDiaSelecionadoProps {
   diaSelecionado: number | null;
   freebetsDoDia: Freebet[];
-  // O TypeScript agora sabe que essa função existe e espera receber um ID
   onDelete: (id: string) => void; 
 }
 
 export function DetalhesDiaSelecionado({ diaSelecionado, freebetsDoDia, onDelete }: DetalhesDiaSelecionadoProps) {
   
+  // === NOVA FUNÇÃO: INTERCEPTADOR COM ALERTA ===
+  const handleExcluirComConfirmacao = (id: string) => {
+    const confirmacao = window.confirm("ATENÇÃO: Tem certeza que deseja excluir esta freebet permanentemente?");
+    if (confirmacao) {
+      onDelete(id); // Só avisa o Pai para excluir se o usuário clicou em "OK"
+    }
+  };
+
   // Estado 1: Nenhum dia clicado
   if (!diaSelecionado) {
     return (
@@ -57,9 +64,9 @@ export function DetalhesDiaSelecionado({ diaSelecionado, freebetsDoDia, onDelete
                   {fb.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
                 
-                {/* Botão de Excluir que dispara a função enviada pelo elemento Pai */}
+                {/* Botão de Excluir chamando o nosso novo interceptador */}
                 <button 
-                  onClick={() => onDelete(fb.id)}
+                  onClick={() => handleExcluirComConfirmacao(fb.id)}
                   className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                   title="Excluir Freebet (Perdeu o prazo)"
                 >

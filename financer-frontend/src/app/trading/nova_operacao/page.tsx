@@ -37,6 +37,7 @@ export default function NovaOperacao() {
   const [freebetsPendentes, setFreebetsPendentes] = useState<any[]>([]);
   const [freebetSelecionada, setFreebetSelecionada] = useState<string>('nova');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false); // NOVO: Controle do menu suspenso
+  const [casasOficiaisDB, setCasasOficiaisDB] = useState<any[]>([]);
 
   // ==========================================
   // CONTROLE DE PROTEÇÕES DINÂMICAS
@@ -63,6 +64,20 @@ export default function NovaOperacao() {
       .then(res => res.json())
       .then(dados => setFreebetsPendentes(dados))
       .catch(err => console.error("Erro ao buscar freebets:", err));
+  }, []);
+
+  useEffect(() => {
+    // Busca as freebets do cofre
+    fetch('http://localhost:8080/api/freebets/pendentes')
+      .then(res => res.json())
+      .then(dados => setFreebetsPendentes(dados))
+      .catch(err => console.error("Erro ao buscar freebets:", err));
+
+    // NOVO: Busca as casas de aposta para podermos traduzir o Nome para ID ao salvar
+    fetch('http://localhost:8080/api/casas')
+      .then(res => res.json())
+      .then(dados => setCasasOficiaisDB(dados))
+      .catch(err => console.error("Erro ao buscar casas:", err));
   }, []);
 
   // ==========================================
@@ -118,8 +133,6 @@ export default function NovaOperacao() {
     // ==========================================
     if (tipoOperacao === 'lucro') {
       const valorFinal = parseNumber(valorLucro);
-      
-      // Exige apenas a descrição (ex: "Roleta") e o valor
       if (valorFinal === 0 || !eventoArbitragem.trim()) {
         alert("Preencha a origem do lucro/perda e o valor!");
         return;
@@ -128,11 +141,10 @@ export default function NovaOperacao() {
       const tradeAvulso = {
         jogo: eventoArbitragem, 
         mercado: 'Lucro/Perda Avulsa',
-        // Se for perda (red), consideramos o valor como o investimento perdido
         valorTotalInvestido: valorFinal < 0 ? Math.abs(valorFinal) : 0,
         lucroLiquidoReal: valorFinal,
-        status: 'FINALIZADO', // Passa reto pelas operações em andamento
-        entradas: [] // Não precisa de odd ou stake detalhada
+        status: 'FINALIZADO',
+        entradas: [] 
       };
 
       try {
@@ -141,11 +153,17 @@ export default function NovaOperacao() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tradeAvulso)
         });
-        if (res.ok) router.push('./trades');
+        
+        if (res.ok) {
+          router.push('./trades');
+        } else {
+          const erroMsg = await res.text();
+          alert("O Java recusou o Lucro Avulso:\n" + erroMsg);
+        }
       } catch (err) {
-        console.error("Erro:", err);
+        alert("Erro fatal de conexão com o servidor!");
       }
-      return; // Interrompe a função aqui para não rodar o código de arbitragem
+      return; 
     }
 
     // ==========================================
@@ -158,31 +176,53 @@ export default function NovaOperacao() {
       return;
     }
 
+    // TRADUTOR: Pega o Nome que está na tela (ex: "Betano") e acha o ID oficial do banco
+    const getCasaIdReal = (nomeOuId: string) => {
+      const casa = casasOficiaisDB.find(c => 
+        c.nome.toLowerCase() === String(nomeOuId).toLowerCase() || c.id === nomeOuId
+      );
+      return casa ? casa.id : null; 
+    };
+
+    const idPrincipal = getCasaIdReal(mainCasaId);
+    if (!idPrincipal) {
+      alert(`Erro no Sistema: A casa '${mainCasaId}' não foi encontrada no banco oficial!`);
+      return;
+    }
+
     const entradasParaOJava = [
       {
         tipo: "PRINCIPAL",
         backLay: "BACK",
         odd: parseNumber(mainOdd),
         stake: parseNumber(mainStake),
-        isFreebet: tipoOperacao === 'freebet',
-        casaAposta: { id: mainCasaId } 
+        // CORREÇÃO LÓGICA: Na MISSÃO, a entrada é com dinheiro real, não com a freebet em si!
+        isFreebet: tipoOperacao === 'freebet' && subTipoFreebet === 'conversao',
+        casaAposta: { id: idPrincipal } 
       }
     ];
 
     const protecoesAtivas = tipoOperacao === 'freebet' ? protecoesFreebet : protecoesArbitragem;
 
-    protecoesAtivas.forEach(prot => {
+    // Usando for...of para poder dar o return alert se a casa da proteção falhar
+    for (const prot of protecoesAtivas) {
       if (prot.casaId && prot.stake) {
+        const idProt = getCasaIdReal(prot.casaId);
+        if (!idProt) {
+          alert(`Erro na Proteção: A casa '${prot.casaId}' não existe no banco!`);
+          return;
+        }
+
         entradasParaOJava.push({
           tipo: "PROTECAO",
           backLay: "LAY",
           odd: parseNumber(prot.odd),
           stake: parseNumber(prot.stake),
           isFreebet: false,
-          casaAposta: { id: prot.casaId }
+          casaAposta: { id: idProt }
         });
       }
-    });
+    }
 
     const valorInvestido = entradasParaOJava.reduce((total, entrada) => total + entrada.stake, 0);
 
@@ -201,21 +241,79 @@ export default function NovaOperacao() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoTrade)
       });
-      if (resposta.ok) router.push('./trades'); 
+      
+      if (resposta.ok) {
+        
+       // ==========================================
+        // GATILHO 1: SE FOR MISSÃO, GERA A FREEBET NO COFRE
+        // ==========================================
+        if (tipoOperacao === 'freebet' && subTipoFreebet === 'missao') {
+          const valorFb = parseNumber(valorFreebetEsperada);
+          if (valorFb > 0) {
+            
+            // Pega a data EXATA DE HOJE
+            const dataDeHoje = new Date();
+            
+            const novaFreebetPayload = {
+              valor: valorFb,
+              status: "PENDENTE",
+              dataVencimento: dataDeHoje.toISOString().split('T')[0], // Envia o formato "YYYY-MM-DD" do dia atual
+              casaAposta: { id: idPrincipal } 
+            };
+            
+            try {
+              const resFb = await fetch('http://localhost:8080/api/freebets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(novaFreebetPayload)
+              });
+              
+              if (!resFb.ok) {
+                const erroMsg = await resFb.text();
+                alert("A operação foi salva, MAS a Freebet não foi criada no cofre!\n\nMotivo do Java:\n" + erroMsg);
+              }
+            } catch (errFb) {
+              console.error("Erro fatal ao gerar freebet:", errFb);
+            }
+          }
+        }
+
+        // ==========================================
+        // GATILHO 2: SE FOR CONVERSÃO, DÁ BAIXA NO COFRE
+        // ==========================================
+        if (tipoOperacao === 'freebet' && subTipoFreebet === 'conversao' && freebetSelecionada !== 'nova') {
+          try {
+            await fetch(`http://localhost:8080/api/freebets/${freebetSelecionada}`, {
+              method: 'DELETE' 
+            });
+          } catch (errFreebet) {
+            console.error("Erro ao dar baixa na freebet:", errFreebet);
+          }
+        }
+        
+        router.push('./trades'); 
+      } else {
+        // O DEDO-DURO! Se o Java não gostar, ele vai aparecer neste Alerta:
+        const erroMsg = await resposta.text();
+        alert("O Java recusou o Registro!\n\nDetalhes do Erro:\n" + erroMsg);
+      }
     } catch (erro) {
-      console.error("Erro:", erro);
+      alert("Erro fatal de conexão com o backend!");
     }
   };
 
   const handleSelecionarFreebet = (id: string) => {
     setFreebetSelecionada(id);
-    setIsDropdownOpen(false); // Fecha o menu ao selecionar
+    setIsDropdownOpen(false); 
     
     if (id !== 'nova') {
       const fb = freebetsPendentes.find(f => f.id === id);
       if (fb) {
         setMainStake(fb.valor.toString()); 
-        if (fb.casaId) setMainCasaId(fb.casaId); 
+        // CORREÇÃO: Lendo o objeto 'casaAposta' exato do seu Java!
+        if (fb.casaAposta && fb.casaAposta.nome) {
+          setMainCasaId(fb.casaAposta.nome); 
+        }
       }
     } else {
       setMainStake('');
@@ -227,7 +325,7 @@ export default function NovaOperacao() {
   const fbAtiva = freebetsPendentes.find(f => f.id === freebetSelecionada);
   const textoInputSelect = freebetSelecionada === 'nova' 
     ? 'Nova Freebet' 
-    : `${fbAtiva?.casa} - R$ ${fbAtiva?.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+    : `${fbAtiva?.casaAposta?.nome} - R$ ${fbAtiva?.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="flex flex-col p-4 md:p-6 gap-6 max-w-200 mx-auto pb-24 relative">
@@ -328,7 +426,7 @@ export default function NovaOperacao() {
                         className="px-4 py-3 text-sm font-bold text-success hover:bg-white/5 cursor-pointer"
                         onClick={() => handleSelecionarFreebet(fb.id)}
                       >
-                        {fb.casa} - R$ {fb.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {fb.casaAposta?.nome} - R$ {fb.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </div>
                     ))}
                   </div>

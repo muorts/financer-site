@@ -39,6 +39,22 @@ public class FreebetController {
         return ResponseEntity.ok(resposta);
     }
 
+    // ==========================================
+    // ROTA PARA CRIAR UMA NOVA FREEBET (MISSÃO)
+    // ==========================================
+    @PostMapping
+    public ResponseEntity<?> criarFreebet(@RequestBody FreebetVoucher novaFreebet) {
+        try {
+            // O React já manda o JSON no formato perfeito: { valor, status, dataVencimento, casaAposta: { id } }
+            // O Hibernate entende isso automaticamente e faz a relação com a Casa de Aposta!
+            FreebetVoucher freebetSalva = freebetRepository.save(novaFreebet);
+            
+            return ResponseEntity.ok(freebetSalva);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Erro interno ao salvar a freebet: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletarFreebet(@PathVariable UUID id) {
         // Encontra a freebet
@@ -52,4 +68,6 @@ public class FreebetController {
         
         return ResponseEntity.ok().build();
     }
+
+    
 }

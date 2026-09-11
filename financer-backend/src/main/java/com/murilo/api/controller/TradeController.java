@@ -3,6 +3,7 @@ package com.murilo.api.controller;
 import com.murilo.api.dto.request.ResolverTradeRequest;
 import com.murilo.api.model.Trade;
 import com.murilo.api.service.TradeService;
+import com.murilo.api.repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,11 +14,12 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/trades")
-@CrossOrigin(origins = "*") 
+@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 @RequiredArgsConstructor
 public class TradeController {
 
     private final TradeService tradeService;
+    private final TradeRepository tradeRepository; 
 
     // Busca todas as operações que estão na aba "Visão Tática" (Em Andamento)
     @GetMapping("/andamento")
@@ -60,6 +62,26 @@ public class TradeController {
         } catch (Exception e) {
             e.printStackTrace(); // Vai imprimir o erro no terminal se algo der errado
             return ResponseEntity.badRequest().body("Erro ao atualizar: " + e.getMessage());
+        }
+    }
+
+    // ==========================================
+    // ROTA PARA DELETAR OPERAÇÃO COMPLETAMENTE
+    // ==========================================
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletarTrade(@PathVariable UUID id) {
+        try {
+            // Verifica se a operação existe
+            if (!tradeRepository.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            // Exclui permanentemente do banco de dados
+            tradeRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Erro ao excluir a operação: " + e.getMessage());
         }
     }
 }
