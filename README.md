@@ -1,4 +1,4 @@
-# Financer PWA 💰📊
+# Fincker 💰📊
 
 > Um sistema unificado de gestão financeira em formato Progressive Web App (PWA), estruturado com arquitetura monorepo e microsserviços.
 
@@ -76,11 +76,19 @@ Este projeto utiliza arquitetura monorepo. Para rodar o ambiente de desenvolvime
 
 | Dashboard Mensal |
 | :---: |
-| *(Imagem da interface será adicionada aqui)* |
+| <img width="1705" height="990" alt="Screenshot 2026-09-15 at 21 33 28" src="https://github.com/user-attachments/assets/6255faad-b582-46d4-92ed-1d8bd1fdfc77" /> |
+
+| Gestão Financeira | 
+| :---: |
+| <img width="1702" height="985" alt="Screenshot 2026-09-15 at 21 34 35" src="https://github.com/user-attachments/assets/7d01ad5c-a8ef-4c62-86fa-910c9269c9db" /> |
+| <img width="1699" height="984" alt="Screenshot 2026-09-15 at 21 34 46" src="https://github.com/user-attachments/assets/2b579384-f6d3-446c-8451-722026ce72a2" /> |
+| <img width="1698" height="980" alt="Screenshot 2026-09-15 at 21 34 55" src="https://github.com/user-attachments/assets/bad29dd6-372e-4d19-a406-f553d3ad5fa9" /> |
 
 | Gestão de Bricks | 
 | :---: |
-| *(Imagem da interface será adicionada aqui)* |
+| <img width="1705" height="985" alt="Screenshot 2026-09-15 at 21 35 07" src="https://github.com/user-attachments/assets/2f0406c0-3f24-443e-a33b-87ec1b269648" /> |
+| <img width="1700" height="983" alt="Screenshot 2026-09-15 at 21 35 15" src="https://github.com/user-attachments/assets/a9cc3e9a-703d-4b8f-8ed2-30754aa8e2bf" /> |
+
 
 ---
 
