@@ -1,15 +1,18 @@
 import { ElementType } from 'react';
+import { Trash2 } from 'lucide-react';
 
 interface CardOrcamentoProps {
+  id?: string | number;
   categoria: string;
   gastoAtual: number;
   limiteMaximo: number;
   icon: ElementType;
+  onDelete?: (id: string) => void;
 }
 
-export function CardOrcamento({ categoria, gastoAtual, limiteMaximo, icon: Icone }: CardOrcamentoProps) {
+export function CardOrcamento({ id, categoria, gastoAtual, limiteMaximo, icon: Icone, onDelete }: CardOrcamentoProps) {
   // Matemática do progresso (limitado a 100% para a barra não vazar da tela)
-  const percentualCru = (gastoAtual / limiteMaximo) * 100;
+  const percentualCru = limiteMaximo > 0 ? (gastoAtual / limiteMaximo) * 100 : 0;
   const percentualVisual = Math.min(percentualCru, 100);
 
   // Lógica de cores inteligente
@@ -18,16 +21,15 @@ export function CardOrcamento({ categoria, gastoAtual, limiteMaximo, icon: Icone
   let statusTexto = 'Dentro do limite';
 
   if (percentualCru >= 100) {
-    corBarra = 'bg-danger shadow-[0_0_10px_rgba(247,90,104,0.5)]'; // Vermelho com glow se estourar
+    corBarra = 'bg-danger shadow-[0_0_10px_rgba(247,90,104,0.5)]';
     corTexto = 'text-danger';
     statusTexto = 'Limite excedido!';
   } else if (percentualCru >= 80) {
-    corBarra = 'bg-orange-500'; // Laranja se estiver perto do fim
+    corBarra = 'bg-orange-500';
     corTexto = 'text-orange-500';
     statusTexto = 'Atenção, quase no limite';
   }
 
-  // Formatador rápido para Reais
   const formatarBRL = (valor: number) => 
     valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -46,13 +48,26 @@ export function CardOrcamento({ categoria, gastoAtual, limiteMaximo, icon: Icone
           </div>
         </div>
 
-        <div className="flex flex-col items-end">
-          <span className={`font-mono font-bold ${corTexto}`}>
-            {formatarBRL(gastoAtual)}
-          </span>
-          <span className="text-xs text-gray-500">
-            de {formatarBRL(limiteMaximo)}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end">
+            <span className={`font-mono font-bold ${corTexto}`}>
+              {formatarBRL(gastoAtual)}
+            </span>
+            <span className="text-xs text-gray-500">
+              de {formatarBRL(limiteMaximo)}
+            </span>
+          </div>
+
+          {onDelete && id && (
+            <button
+              type="button"
+              onClick={() => onDelete(String(id))}
+              className="p-2 transition-colors border rounded-lg bg-surface border-border hover:border-danger/50 text-gray-500 hover:text-danger"
+              title="Excluir meta"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,11 +1,12 @@
 package com.murilo.api.service;
 
-import com.murilo.api.model.CasaAposta;
-import com.murilo.api.model.EntradaTrade;
-import com.murilo.api.model.FreebetVoucher;
-import com.murilo.api.model.Trade;
-import com.murilo.api.repository.FreebetVoucherRepository;
-import com.murilo.api.repository.TradeRepository;
+import com.murilo.api.model.trades.CasaAposta;
+import com.murilo.api.model.trades.EntradaTrade;
+import com.murilo.api.model.trades.FreebetVoucher;
+import com.murilo.api.model.trades.Trade;
+import com.murilo.api.repository.trades.FreebetVoucherRepository;
+import com.murilo.api.repository.trades.TradeRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // <-- Importação do Transactional aqui!

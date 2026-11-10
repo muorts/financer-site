@@ -1,47 +1,135 @@
+"use client";
+
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { CardTransacao } from "@/components/financer/CardTransacao";
 import { Filters } from "@/components/financer/filters";
 import { ChartCat } from "@/components/financer/ChartCat";
-import { Activity, TrendingUp, TrendingDown } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, Plus } from 'lucide-react';
+import { 
+  API_URL, TransacaoDTO, ResumoMetasDTO, 
+  formatarBRL, formatarDataCurta 
+} from '@/lib/util';
 
-// === DADOS FALSOS (Mock) PARA OS GRÁFICOS ===
-const dadosEntradas = [
-  { categoria: 'Operações', valor: 'R$ 1.500', percentual: 60, cor: 'text-brand' },
-  { categoria: 'Bricks', valor: 'R$ 750', percentual: 30, cor: 'text-success' },
-  { categoria: 'Bolsa', valor: 'R$ 250', percentual: 10, cor: 'text-blue-400' },
-];
+interface CategoriaResumoAPI {
+  categoria: string;
+  valor: number;
+  percentual: number;
+  corTexto: string;
+  corBarra: string;
+}
 
-const dadosSaidas = [
-  { categoria: 'Lazer', valor: 'R$ 350', percentual: 50, cor: 'text-danger' },
-  { categoria: 'Alimentação', valor: 'R$ 210', percentual: 30, cor: 'text-orange-400' },
-  { categoria: 'Operacional', valor: 'R$ 140', percentual: 20, cor: 'text-purple-400' },
-];
-
-// === DADOS FALSOS PARA O FEED ===
-const transacoes = [
-  { id: 1, tipo: 'entrada', titulo: 'Venda PS Vita (OLX)', valor: 'R$ 950,00', categoria: 'Lucro de Bricks', data: 'Hoje, 14:30' },
-  { id: 2, tipo: 'saida', titulo: 'Analógico 3DS (Aliexpress)', valor: 'R$ 45,00', categoria: 'Custo Operacional', data: 'Ontem, 09:15' },
-  { id: 3, tipo: 'entrada', titulo: 'Bolsa USP', valor: 'R$ 700,00', categoria: 'Salário/Bolsa', data: '05 de Ago' },
-  { id: 4, tipo: 'entrada', titulo: 'Green (Duplo PA)', valor: 'R$ 120,00', categoria: 'Operações', data: '04 de Ago' },
-  { id: 5, tipo: 'saida', titulo: 'Ifood (Lanche)', valor: 'R$ 38,50', categoria: 'Alimentação', data: '02 de Ago' },
-] as const;
+interface DashboardResumoAPI {
+  lucroLiquido: number;
+  entradasBrutas: number;
+  saidasTotais: number;
+  aportesMes: number;
+  operacoesConcluidas: number;
+  raioX: CategoriaResumoAPI[];
+  raioXSaidas: CategoriaResumoAPI[];
+}
 
 export default function VisaoGeralFinanceiro() {
-  const entradas = transacoes.filter(t => t.tipo === 'entrada');
-  const saidas = transacoes.filter(t => t.tipo === 'saida');
+  const hoje = new Date();
+  const [mes, setMes] = useState(hoje.getMonth() + 1);
+  const [ano, setAno] = useState(hoje.getFullYear());
+  const [filtroAtivo, setFiltroAtivo] = useState('Todas');
+
+  const [transacoes, setTransacoes] = useState<TransacaoDTO[]>([]);
+  const [resumo, setResumo] = useState<DashboardResumoAPI | null>(null);
+  const [resumoMetas, setResumoMetas] = useState<ResumoMetasDTO | null>(null);
+
+  const carregarDados = useCallback(async () => {
+    try {
+      const [resTrans, resDash, resMetas] = await Promise.all([
+        fetch(`${API_URL}/transacoes?mes=${mes}&ano=${ano}`),
+        fetch(`${API_URL}/dashboard/resumo?mes=${mes}&ano=${ano}`),
+        fetch(`${API_URL}/metas?mes=${mes}&ano=${ano}`),
+      ]);
+
+      if (resTrans.ok) {
+        const lista = await resTrans.json();
+        setTransacoes(Array.isArray(lista) ? lista : []);
+      }
+      if (resDash.ok) {
+        setResumo(await resDash.json());
+      }
+      if (resMetas.ok) {
+        setResumoMetas(await resMetas.json());
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar Visão Geral Financeira:', erro);
+    }
+  }, [mes, ano]);
+
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  const mudarMes = (delta: number) => {
+    let novoMes = mes + delta;
+    let novoAno = ano;
+    if (novoMes < 1) {
+      novoMes = 12;
+      novoAno -= 1;
+    } else if (novoMes > 12) {
+      novoMes = 1;
+      novoAno += 1;
+    }
+    setMes(novoMes);
+    setAno(novoAno);
+  };
+
+  const handleExcluirTransacao = async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/transacoes/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await carregarDados();
+      }
+    } catch (erro) {
+      console.error('Erro ao excluir transação:', erro);
+    }
+  };
+
+  const entradas = transacoes.filter((t) => t.tipo?.toUpperCase() === 'ENTRADA');
+  const saidas = transacoes.filter((t) => t.tipo?.toUpperCase() === 'SAIDA');
+
+  const dadosGraficoEntradas = (resumo?.raioX || []).map((item) => ({
+    categoria: item.categoria,
+    valor: formatarBRL(item.valor),
+    percentual: item.percentual,
+    cor: item.corTexto,
+  }));
+
+  const dadosGraficoSaidas = (resumo?.raioXSaidas || []).map((item) => ({
+    categoria: item.categoria,
+    valor: formatarBRL(item.valor),
+    percentual: item.percentual,
+    cor: item.corTexto,
+  }));
+
+  const tetoOrcamento = resumoMetas?.orcamentoTotal || 0;
+  const gastoNoMes = resumo?.saidasTotais || 0;
+  const restanteOrcamento = Math.max(tetoOrcamento - gastoNoMes, 0);
+  const percentualOrcamento = tetoOrcamento > 0 ? Math.min((gastoNoMes / tetoOrcamento) * 100, 100) : 0;
 
   return (
     <div className="flex flex-col p-4 md:p-6 gap-6 max-w-[1400px] mx-auto pb-24">
       
-      {/* 1. BLOCO FLUTUANTE: CABEÇALHO ANALÍTICO (Agora com 2 gráficos) */}
+      {/* 1. BLOCO FLUTUANTE: CABEÇALHO ANALÍTICO */}
       <div className="flex flex-col gap-8 p-6 border bg-surface/40 border-border/80 rounded-xl lg:flex-row lg:items-center">
         
         {/* GRÁFICOS (Esquerda) */}
-        <div className="flex justify-center gap-8 lg:w-1/2 lg:border-r lg:border-border/50 lg:pr-8">
-          
+        <div className="flex flex-wrap justify-center gap-8 lg:w-1/2 lg:border-r lg:border-border/50 lg:pr-8">
+          <ChartCat 
+            titulo="Entradas" 
+            valorTotal={formatarBRL(resumo?.entradasBrutas || 0)} 
+            dados={dadosGraficoEntradas} 
+          />
           <ChartCat 
             titulo="Saídas" 
-            valorTotal="R$ 700" 
-            dados={dadosSaidas} 
+            valorTotal={formatarBRL(resumo?.saidasTotais || 0)} 
+            dados={dadosGraficoSaidas} 
           />
         </div>
 
@@ -49,50 +137,111 @@ export default function VisaoGeralFinanceiro() {
         <div className="flex flex-col justify-center flex-1 w-full gap-4 lg:pl-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white">Orçamento do Mês</h2>
-            <span className="text-sm font-medium text-gray-400">Restam R$ 616,50</span>
+            <span className="text-sm font-medium text-gray-400">
+              {tetoOrcamento > 0 ? `Restam ${formatarBRL(restanteOrcamento)}` : 'Sem meta definida'}
+            </span>
           </div>
           
           <div>
             <div className="flex justify-between mb-2 text-sm">
-              <span className="text-danger">Gasto: R$ 83,50</span>
-              <span className="text-gray-500">Teto: R$ 700,00</span>
+              <span className="text-danger font-mono">Gasto: {formatarBRL(gastoNoMes)}</span>
+              <span className="text-gray-500 font-mono">Teto: {formatarBRL(tetoOrcamento)}</span>
             </div>
             <div className="w-full h-3 overflow-hidden rounded-full bg-background border border-border/50">
-              <div className="h-full rounded-full bg-danger w-[12%] transition-all duration-1000"></div>
+              <div 
+                className="h-full rounded-full bg-danger transition-all duration-1000"
+                style={{ width: `${percentualOrcamento}%` }}
+              />
             </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-2">
+            <Link
+              href="/financer/metas_orcamentos"
+              className="text-xs font-medium text-gray-400 hover:text-white underline"
+            >
+              Configurar metas
+            </Link>
+            <Link
+              href="/financer/nova_transacao"
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Transação
+            </Link>
           </div>
         </div>
       </div>
 
       {/* 2. BLOCO FLUTUANTE: FILTROS */}
-      <Filters />
+      <Filters 
+        mes={mes}
+        ano={ano}
+        onMudarMes={mudarMes}
+        filtroAtivo={filtroAtivo}
+        onMudarFiltro={setFiltroAtivo}
+      />
 
       {/* 3. BLOCO FLUTUANTE: FEED DE TRANSAÇÕES DIVIDIDO */}
       <div className="flex flex-col p-5 border bg-surface/40 border-border/80 rounded-xl">
-        <div className="flex items-center gap-2 mb-6">
-          <Activity className="w-4 h-4 text-gray-400" />
-          <h3 className="font-medium text-white">Histórico Recente</h3>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-gray-400" />
+            <h3 className="font-medium text-white">Histórico do Mês ({transacoes.length})</h3>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          <div className="flex flex-col gap-3">
-            <h4 className="flex items-center gap-2 mb-2 text-sm font-medium text-success">
-              <TrendingUp className="w-4 h-4" /> Entradas
-            </h4>
-            {entradas.map((transacao) => (
-              <CardTransacao key={transacao.id} {...transacao} />
-            ))}
-          </div>
+          {filtroAtivo !== 'Só Saídas' && (
+            <div className="flex flex-col gap-3">
+              <h4 className="flex items-center gap-2 mb-2 text-sm font-medium text-success">
+                <TrendingUp className="w-4 h-4" /> Entradas ({entradas.length})
+              </h4>
+              {entradas.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4">Nenhuma entrada registrada neste mês.</p>
+              ) : (
+                entradas.map((t) => (
+                  <CardTransacao 
+                    key={t.id} 
+                    id={t.id}
+                    tipo="entrada"
+                    titulo={t.descricao}
+                    valor={formatarBRL(t.valor)}
+                    categoria={t.categoria?.nome || 'Sem Categoria'}
+                    bancoNome={t.banco?.nome}
+                    data={formatarDataCurta(t.data)}
+                    onDelete={handleExcluirTransacao}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-          <div className="flex flex-col gap-3">
-            <h4 className="flex items-center gap-2 mb-2 text-sm font-medium text-danger">
-              <TrendingDown className="w-4 h-4" /> Saídas
-            </h4>
-            {saidas.map((transacao) => (
-              <CardTransacao key={transacao.id} {...transacao} />
-            ))}
-          </div>
+          {filtroAtivo !== 'Só Entradas' && (
+            <div className="flex flex-col gap-3">
+              <h4 className="flex items-center gap-2 mb-2 text-sm font-medium text-danger">
+                <TrendingDown className="w-4 h-4" /> Saídas ({saidas.length})
+              </h4>
+              {saidas.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4">Nenhuma saída registrada neste mês.</p>
+              ) : (
+                saidas.map((t) => (
+                  <CardTransacao 
+                    key={t.id} 
+                    id={t.id}
+                    tipo="saida"
+                    titulo={t.descricao}
+                    valor={formatarBRL(t.valor)}
+                    categoria={t.categoria?.nome || 'Sem Categoria'}
+                    bancoNome={t.banco?.nome}
+                    data={formatarDataCurta(t.data)}
+                    onDelete={handleExcluirTransacao}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
         </div>
       </div>

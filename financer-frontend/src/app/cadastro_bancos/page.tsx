@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, Building2, Save, Pencil, Trash2, 
@@ -10,13 +10,11 @@ import {
 import { CardSelecao } from '@/components/ui/CardSelect'; 
 import { SeletorCores } from '@/components/ui/ColorSelect';
 import { NameInput } from '@/components/ui/NameInput';
+import { API_URL, BancoDTO, formatarBRL, parseValorMonetario, getClassesCor } from '@/lib/util';
 
 export default function CadastroBanco() {
-  // Estado com lista simulada de bancos cadastrados
-  const [bancos, setBancos] = useState([
-    { id: '1', nome: 'Nubank - Giro', tipo: 'giro', cor: 'purple', saldo: '1500,00' },
-    { id: '2', nome: 'Inter - Reserva', tipo: 'reserva', cor: 'orange', saldo: '5000,00' },
-  ]);
+  const [bancos, setBancos] = useState<BancoDTO[]>([]);
+  const [carregando, setCarregando] = useState(true);
 
   // Estados do Formulário
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -24,47 +22,90 @@ export default function CadastroBanco() {
   const [tipoConta, setTipoConta] = useState<'giro' | 'reserva'>('giro');
   const [saldo, setSaldo] = useState('');
   const [corSelecionada, setCorSelecionada] = useState('purple');
+  const [diaFechamento, setDiaFechamento] = useState('3');
+  const [diaVencimento, setDiaVencimento] = useState('10');
 
-  // Função para Salvar (Criar ou Atualizar)
-  const handleSalvar = () => {
-    if (!nome.trim()) return;
+  // Carregar bancos do Backend
+  useEffect(() => {
+    fetch(`${API_URL}/bancos`)
+      .then((res) => res.json())
+      .then((data) => setBancos(Array.isArray(data) ? data : []))
+      .catch((err) => console.error('Erro ao carregar bancos:', err))
+      .finally(() => setCarregando(false));
+  }, []);
 
-    if (editandoId) {
-      setBancos(bancos.map(b => 
-        b.id === editandoId 
-          ? { ...b, nome, tipo: tipoConta, cor: corSelecionada, saldo } 
-          : b
-      ));
-      setEditandoId(null);
-    } else {
-      const novoBanco = {
-        id: String(Date.now()),
-        nome,
-        tipo: tipoConta,
-        cor: corSelecionada,
-        saldo,
-      };
-      setBancos([...bancos, novoBanco]);
-    }
-
-    // Resetar formulário
+  const resetarFormulario = () => {
+    setEditandoId(null);
     setNome('');
     setSaldo('');
     setTipoConta('giro');
     setCorSelecionada('purple');
+    setDiaFechamento('3');
+    setDiaVencimento('10');
   };
 
-  const handleEditar = (banco: typeof bancos[0]) => {
+  // Função para Salvar (Criar ou Atualizar no PostgreSQL)
+  const handleSalvar = async () => {
+    if (!nome.trim()) return;
+
+    const payload = {
+      nome: nome.trim(),
+      tipo: tipoConta.toUpperCase(),
+      cor: corSelecionada,
+      saldoInicial: parseValorMonetario(saldo),
+      diaFechamento: parseInt(diaFechamento, 10) || 3,
+      diaVencimento: parseInt(diaVencimento, 10) || 10,
+    };
+
+    try {
+      if (editandoId) {
+        const res = await fetch(`${API_URL}/bancos/${editandoId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const bancoAtualizado: BancoDTO = await res.json();
+          setBancos(bancos.map((b) => (b.id === editandoId ? bancoAtualizado : b)));
+          resetarFormulario();
+        }
+      } else {
+        const res = await fetch(`${API_URL}/bancos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const novoBanco: BancoDTO = await res.json();
+          setBancos([...bancos, novoBanco]);
+          resetarFormulario();
+        }
+      }
+    } catch (erro) {
+      console.error('Erro ao salvar banco:', erro);
+    }
+  };
+
+  const handleEditar = (banco: BancoDTO) => {
     setEditandoId(banco.id);
     setNome(banco.nome);
-    setTipoConta(banco.tipo as 'giro' | 'reserva');
-    setSaldo(banco.saldo);
-    setCorSelecionada(banco.cor);
+    setTipoConta(banco.tipo?.toLowerCase() === 'reserva' ? 'reserva' : 'giro');
+    setSaldo(String(banco.saldoInicial ?? 0).replace('.', ','));
+    setCorSelecionada(banco.cor || 'purple');
+    setDiaFechamento(String(banco.diaFechamento ?? 3));
+    setDiaVencimento(String(banco.diaVencimento ?? 10));
   };
 
-  const handleExcluir = (id: string) => {
-    setBancos(bancos.filter(b => b.id !== id));
-    if (editandoId === id) setEditandoId(null);
+  const handleExcluir = async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/bancos/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setBancos(bancos.filter((b) => b.id !== id));
+        if (editandoId === id) resetarFormulario();
+      }
+    } catch (erro) {
+      console.error('Erro ao excluir banco:', erro);
+    }
   };
 
   return (
@@ -83,42 +124,64 @@ export default function CadastroBanco() {
 
       {/* LISTAGEM DE BANCOS */}
       <div className="flex flex-col gap-4 p-6 md:p-8 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
-        <h2 className="text-sm font-medium tracking-wider uppercase text-gray-400">Contas Ativas</h2>
+        <h2 className="text-sm font-medium tracking-wider uppercase text-gray-400">
+          Contas Ativas ({bancos.length})
+        </h2>
         
         <div className="flex flex-col gap-3">
-          {bancos.map((banco) => (
-            <div key={banco.id} className="flex items-center justify-between p-4 border rounded-xl bg-[#18181b]/50 border-border/50 hover:bg-[#18181b] transition-colors">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border border-border bg-surface text-white`}>
-                  <Landmark className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium text-white text-sm">{banco.nome}</span>
-                  <span className="text-xs text-gray-500">{banco.tipo === 'giro' ? 'Giro Operacional' : 'Reserva Fixa'}</span>
-                </div>
-              </div>
+          {carregando ? (
+            <p className="text-sm text-gray-500 py-4 text-center">Carregando contas...</p>
+          ) : bancos.length === 0 ? (
+            <p className="text-sm text-gray-500 py-4 text-center">Nenhum banco cadastrado ainda.</p>
+          ) : (
+            bancos.map((banco) => {
+              const cores = getClassesCor(banco.cor);
+              const isGiro = banco.tipo?.toUpperCase() === 'GIRO';
 
-              <div className="flex items-center gap-2">
-                <button onClick={() => handleEditar(banco)} className="p-2 border rounded-lg bg-surface border-border hover:border-gray-500 text-gray-400 hover:text-white">
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button onClick={() => handleExcluir(banco.id)} className="p-2 border rounded-lg bg-surface border-border hover:border-danger/50 text-gray-400 hover:text-danger">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+              return (
+                <div key={banco.id} className="flex items-center justify-between p-4 border rounded-xl bg-[#18181b]/50 border-border/50 hover:bg-[#18181b] transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${cores.border} ${cores.bgSoft} ${cores.text}`}>
+                      <Landmark className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-white text-sm">{banco.nome}</span>
+                      <span className="text-xs text-gray-500">
+                        {isGiro ? 'Giro Operacional' : 'Reserva Fixa'} • Saldo: <strong className="text-gray-300 font-mono">{formatarBRL(banco.saldoAtual)}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleEditar(banco)} className="p-2 border rounded-lg bg-surface border-border hover:border-gray-500 text-gray-400 hover:text-white" title="Editar">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleExcluir(banco.id)} className="p-2 border rounded-lg bg-surface border-border hover:border-danger/50 text-gray-400 hover:text-danger" title="Excluir">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
       {/* FORMULÁRIO */}
       <div className="flex flex-col gap-8 p-6 md:p-8 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
-        <h2 className="text-lg font-bold text-white">{editandoId ? 'Editar Banco' : 'Nova Conta'}</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">{editandoId ? 'Editar Banco' : 'Nova Conta'}</h2>
+          {editandoId && (
+            <button onClick={resetarFormulario} className="text-xs text-gray-400 hover:text-white underline">
+              Cancelar Edição
+            </button>
+          )}
+        </div>
         
         <NameInput 
           label="Nome de Identificação"
           icon={Building2}
-          placeholder="ex: Nubank - Caixinha 1"
+          placeholder="ex: Nubank - Giro"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
         />
@@ -155,16 +218,44 @@ export default function CadastroBanco() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-300">Saldo Inicial</label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-4 font-mono text-gray-500">R$</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-300">Saldo Inicial</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-4 font-mono text-gray-500">R$</span>
+              <input 
+                type="text" 
+                placeholder="0,00"
+                value={saldo}
+                onChange={(e) => setSaldo(e.target.value)}
+                className="w-full py-3 pl-12 pr-4 font-mono text-white transition-colors border rounded-xl bg-[#18181b] border-border focus:border-brand outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-300">Dia Fechamento Fatura</label>
             <input 
-              type="text" 
-              placeholder="0,00"
-              value={saldo}
-              onChange={(e) => setSaldo(e.target.value)}
-              className="w-full py-3 pl-12 pr-4 font-mono text-white transition-colors border rounded-xl bg-[#18181b] border-border focus:border-brand outline-none"
+              type="number" 
+              min={1}
+              max={31}
+              placeholder="Ex: 3"
+              value={diaFechamento}
+              onChange={(e) => setDiaFechamento(e.target.value)}
+              className="w-full py-3 px-4 font-mono text-white transition-colors border rounded-xl bg-[#18181b] border-border focus:border-brand outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-300">Dia Vencimento Fatura</label>
+            <input 
+              type="number" 
+              min={1}
+              max={31}
+              placeholder="Ex: 10"
+              value={diaVencimento}
+              onChange={(e) => setDiaVencimento(e.target.value)}
+              className="w-full py-3 px-4 font-mono text-white transition-colors border rounded-xl bg-[#18181b] border-border focus:border-brand outline-none"
             />
           </div>
         </div>

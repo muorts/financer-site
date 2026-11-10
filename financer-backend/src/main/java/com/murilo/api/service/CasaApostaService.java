@@ -1,7 +1,8 @@
 package com.murilo.api.service;
 
-import com.murilo.api.model.CasaAposta;
-import com.murilo.api.repository.CasaApostaRepository;
+import com.murilo.api.model.trades.CasaAposta;
+import com.murilo.api.repository.trades.CasaApostaRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,8 +1,9 @@
-package com.murilo.api.repository;
+package com.murilo.api.repository.trades;
 
-import com.murilo.api.model.CasaAposta;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
+import com.murilo.api.model.trades.CasaAposta;
 
 import java.util.UUID;
 

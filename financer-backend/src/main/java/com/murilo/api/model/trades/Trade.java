@@ -1,4 +1,4 @@
-package com.murilo.api.model;
+package com.murilo.api.model.trades;
 
 import jakarta.persistence.*;
 import lombok.Data;

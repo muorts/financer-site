@@ -4,20 +4,22 @@
 export interface LinhaAposta {
   id: string;
   tipo: 'BACK' | 'LAY';
-  odd: string;
-  comissao: string;
-  valor: string; // "Aposta a favor" no LAY, Stake no BACK
+  odd: string | number; // Agora aceita tanto texto quanto número
+  comissao: string | number;
+  valor: string | number; 
   isFreebet: boolean;
   isFixa: boolean;
+  isManual?: boolean; 
 }
 
 export interface LinhaCalculada extends LinhaAposta {
   oddNum: number;
   oddReal: number;
-  stakeFinal: number; // Aposta a Favor
-  responsabilidadeFinal: number; // Risco real (Liability)
+  stakeFinal: number; 
+  responsabilidadeFinal: number; 
   retornoBruto: number;
   lucroCenario: number;
+  stakeUsada: number; 
 }
 
 export interface ResultadoCalculadora {
@@ -27,82 +29,81 @@ export interface ResultadoCalculadora {
 }
 
 // ==========================================
-// 1. CALCULADORA AVANÇADA
+// 1. CALCULADORA AVANÇADA (HÍBRIDA E BLINDADA CONTRA TIPAGEM)
 // ==========================================
-export function calcularGoatAvancado(linhas: LinhaAposta[]): ResultadoCalculadora {
+export function calcularGoatAvancado(
+  linhas: LinhaAposta[], 
+  modo: 'linha' | 'total' = 'linha', 
+  totalFixo: number = 100
+): ResultadoCalculadora {
+  
   if (linhas.length === 0) return { linhasProcessadas: [], totalInvestidoReal: 0, roiTotal: 0 };
 
-  // 1. Encontra a linha que está com o valor fixado pelo usuário
-  const linhaFixa = linhas.find(l => l.isFixa) || linhas[0];
-  const valFixa = parseFloat(linhaFixa.valor.replace(',', '.')) || 0;
-  const oddFixa = parseFloat(linhaFixa.odd.replace(',', '.')) || 1.01;
-  
-  // 2. O Risco de uma linha FIXA depende se é BACK ou LAY
-  let riscoFixo = valFixa;
-  if (linhaFixa.tipo === 'LAY') {
-    riscoFixo = valFixa * (oddFixa - 1); // Liability
-  }
-
-  // 3. Processa Odds Reais (Odd Equivalente no caso do LAY)
   const dadosLinhas = linhas.map(l => {
-    const oddNum = parseFloat(l.odd.replace(',', '.')) || 1.01;
-    const comissaoNum = parseFloat(l.comissao.replace(',', '.')) || 0;
+    // A MÁGICA: O String() garante que nunca vai quebrar o replace, mesmo se vier do Java
+    const oddNum = parseFloat(String(l.odd).replace(',', '.')) || 1.01;
+    const comissaoNum = parseFloat(String(l.comissao || '0').replace(',', '.')) || 0;
     const fatorComissao = (100 - comissaoNum) / 100;
-
+    
     let oddReal = 1.0;
+    
     if (l.tipo === 'LAY') {
-      // Para o motor genérico, um LAY vira um BACK equivalente inverso. 
-      // Se eu arrisco L, eu ganho L * ((Odd - Comissao) / (Odd - 1))
       const c = comissaoNum / 100;
       oddReal = Math.max(1.001, (oddNum - c) / (oddNum - 1));
     } else {
-      if (l.isFreebet) {
-        oddReal = Math.max(0.001, (oddNum - 1) * fatorComissao);
-      } else {
-        oddReal = Math.max(0.001, 1 + (oddNum - 1) * fatorComissao);
-      }
+      if (l.isFreebet) oddReal = Math.max(0.001, (oddNum - 1) * fatorComissao);
+      else oddReal = Math.max(0.001, 1 + (oddNum - 1) * fatorComissao);
     }
     return { ...l, oddNum, oddReal };
   });
 
-  // 4. Retorno Alvo (Iguala os Lucros)
-  const linhaFixaProcessada = dadosLinhas.find(l => l.isFixa) || dadosLinhas[0];
-  const retornoAlvo = riscoFixo * linhaFixaProcessada.oddReal;
+  let retornoAlvo = 0;
+  if (modo === 'linha') {
+    const linhaFixa = dadosLinhas.find(l => l.isFixa) || dadosLinhas[0];
+    const valFixa = parseFloat(String(linhaFixa.valor || '0').replace(',', '.')) || 0;
+    let riscoFixo = linhaFixa.tipo === 'LAY' ? valFixa * (linhaFixa.oddNum - 1) : valFixa;
+    retornoAlvo = riscoFixo * linhaFixa.oddReal;
+  } else {
+    let somaInversos = 0;
+    dadosLinhas.forEach(l => { if (!l.isFreebet && l.oddReal > 0) somaInversos += (1 / l.oddReal); });
+    retornoAlvo = somaInversos > 0 ? (totalFixo / somaInversos) : 0;
+  }
 
-  // 5. Calcula as Stakes para as demais linhas
   let totalInvestidoReal = 0;
 
   const linhasComStake = dadosLinhas.map(l => {
-    let riscoCalculado = 0;
-
-    if (l.isFixa) {
-      riscoCalculado = l.id === linhaFixaProcessada.id ? riscoFixo : (l.oddReal > 0 ? retornoAlvo / l.oddReal : 0);
+    let riscoIdeal = 0;
+    if (modo === 'linha' && l.isFixa) {
+      const linhaF = dadosLinhas.find(f => f.isFixa) || dadosLinhas[0];
+      const vFixa = parseFloat(String(linhaF.valor || '0').replace(',', '.')) || 0;
+      riscoIdeal = l.tipo === 'LAY' ? vFixa * (l.oddNum - 1) : vFixa;
     } else {
-      riscoCalculado = l.oddReal > 0 ? retornoAlvo / l.oddReal : 0;
+      riscoIdeal = l.oddReal > 0 ? retornoAlvo / l.oddReal : 0;
     }
+
+    const apostaIdeal = l.tipo === 'LAY' ? riscoIdeal / (l.oddNum - 1) : riscoIdeal;
+    const responsaIdeal = riscoIdeal;
+
+    let apostaAplicada = apostaIdeal;
+    if (l.isFixa || l.isManual) {
+      apostaAplicada = parseFloat(String(l.valor || '0').replace(',', '.')) || 0; 
+    }
+
+    const riscoAplicado = l.tipo === 'LAY' ? apostaAplicada * (l.oddNum - 1) : apostaAplicada;
 
     if (!l.isFreebet) {
-      totalInvestidoReal += riscoCalculado;
-    }
-
-    // Voltando para o formato que a Tabela entende (Aposta a Favor vs Responsabilidade)
-    let apostaAFavor = riscoCalculado;
-    let responsabilidade = riscoCalculado;
-
-    if (l.tipo === 'LAY') {
-      apostaAFavor = riscoCalculado / (l.oddNum - 1);
-      responsabilidade = riscoCalculado;
+      totalInvestidoReal += riscoAplicado;
     }
 
     return {
       ...l,
-      stakeFinal: apostaAFavor,
-      responsabilidadeFinal: responsabilidade,
-      retornoBruto: riscoCalculado * l.oddReal
+      stakeFinal: apostaIdeal, 
+      responsabilidadeFinal: responsaIdeal,
+      stakeUsada: apostaAplicada, 
+      retornoBruto: riscoAplicado * l.oddReal
     };
   });
 
-  // 6. Calcula Lucro Líquido
   const linhasProcessadas = linhasComStake.map(l => {
     const lucroCenario = l.retornoBruto - totalInvestidoReal;
     return { ...l, lucroCenario };
@@ -114,6 +115,9 @@ export function calcularGoatAvancado(linhas: LinhaAposta[]): ResultadoCalculador
   return { linhasProcessadas, totalInvestidoReal, roiTotal };
 }
 
+// ==========================================
+// 2. CÁLCULO DE LUCRO PARA LISTA DE OPERAÇÕES (BLINDADO)
+// ==========================================
 export function calcularLucroProjetado(entradas: any[], mercado: string, custoInicial: number): number {
   if (!entradas || entradas.length === 0) return 0;
 
@@ -121,32 +125,29 @@ export function calcularLucroProjetado(entradas: any[], mercado: string, custoIn
   const isConversao = mercadoStr.includes('conversão') || mercadoStr.includes('conversao');
   const isMissao = mercadoStr.includes('missão') || mercadoStr.includes('missao');
 
-  // 1. CUSTO REAL DA OPERAÇÃO
   let custoReal = custoInicial;
   if (isConversao) {
-    // Na conversão, a primeira stake (Freebet) não sai do bolso, só as proteções
-    custoReal = entradas.reduce((acc, curr, index) => index === 0 ? acc : acc + curr.stake, 0);
+    custoReal = entradas.reduce((acc, curr, index) => index === 0 ? acc : acc + parseFloat(String(curr.stake || '0').replace(',', '.')), 0);
   } else if (custoReal <= 0) {
-    custoReal = entradas.reduce((acc, curr) => acc + curr.stake, 0);
+    custoReal = entradas.reduce((acc, curr) => acc + parseFloat(String(curr.stake || '0').replace(',', '.')), 0);
   }
 
-  // 2. CÁLCULO DE HEDGE BLINDADO
   const lucrosPossiveis = entradas.map((entrada, index) => {
-    
-    // A MÁGICA DA CORREÇÃO AQUI:
     let isFreebet = entrada.isFreebet;
     
-    // Se a palavra "missao" está no mercado, força a ser dinheiro real, mesmo que o banco diga o contrário.
     if (isMissao) {
       isFreebet = false; 
     } else if (isConversao && index === 0) {
-      isFreebet = true; // Na conversão, a principal é sempre voucher.
+      isFreebet = true; 
     }
 
-    // Se é freebet, não devolve a stake (odd - 1). Se é real, a stake volta integral (odd * stake).
+    // BLINDAGEM: Garante que a odd e a stake passem sem quebrar
+    const oddFormatada = parseFloat(String(entrada.odd || '0').replace(',', '.'));
+    const stakeFormatada = parseFloat(String(entrada.stake || '0').replace(',', '.'));
+
     const retorno = isFreebet
-      ? (entrada.odd - 1) * entrada.stake
-      : entrada.odd * entrada.stake;
+      ? (oddFormatada - 1) * stakeFormatada
+      : oddFormatada * stakeFormatada;
 
     return retorno - custoReal;
   });

@@ -40,7 +40,7 @@ const modulos = [
         {label: "Categorias", icon: ChartColumnStacked, url: '/sales/categorias'},
     ] 
   },
-  { 
+  /*{ 
     label: 'Trading', 
     icon: Dices,
     submenus: [
@@ -51,6 +51,7 @@ const modulos = [
       {label: "Casas", icon: HousePlus, url: '/trading/casas'},
     ] 
   },
+  */
   
 ];
 

@@ -1,7 +1,8 @@
-package com.murilo.api.controller;
+package com.murilo.api.controller.trades;
 
-import com.murilo.api.model.FreebetVoucher;
-import com.murilo.api.repository.FreebetVoucherRepository;
+import com.murilo.api.model.trades.FreebetVoucher;
+import com.murilo.api.repository.trades.FreebetVoucherRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

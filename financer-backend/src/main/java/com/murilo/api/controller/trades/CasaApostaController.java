@@ -1,6 +1,6 @@
-package com.murilo.api.controller;
+package com.murilo.api.controller.trades;
 
-import com.murilo.api.model.CasaAposta;
+import com.murilo.api.model.trades.CasaAposta;
 import com.murilo.api.service.CasaApostaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
