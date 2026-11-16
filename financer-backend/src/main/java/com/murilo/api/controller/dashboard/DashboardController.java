@@ -1,14 +1,18 @@
 package com.murilo.api.controller.dashboard;
 
+import com.murilo.api.model.dashboard.Banco;
+import com.murilo.api.model.dashboard.Categoria;
 import com.murilo.api.model.dashboard.DashboardResumo;
+import com.murilo.api.model.dashboard.Transacao;
+import com.murilo.api.repository.dashboard.BancoRepository;
 import com.murilo.api.repository.dashboard.TransacaoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.YearMonth;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -17,11 +21,18 @@ import java.util.List;
 public class DashboardController {
 
     private final TransacaoRepository transacaoRepository;
+    private final BancoRepository bancoRepository;
+
+    private static final String[] MESES_CURTOS = {
+        "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+        "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+    };
 
     @GetMapping("/resumo")
     public ResponseEntity<DashboardResumo> getResumo(
             @RequestParam(required = false) Integer mes,
-            @RequestParam(required = false) Integer ano) {
+            @RequestParam(required = false) Integer ano,
+            @RequestParam(required = false) UUID bancoId) {
 
         DashboardResumo resumo = new DashboardResumo();
 
@@ -29,54 +40,132 @@ public class DashboardController {
         int mesRef = mes != null ? mes : hoje.getMonthValue();
         int anoRef = ano != null ? ano : hoje.getYear();
 
-        // 1. Buscas no Banco de Dados Real
-        Double entradasBrutas = transacaoRepository.somarEntradasDoMes(mesRef, anoRef);
-        Double saidasTotais = transacaoRepository.somarSaidasDoMes(mesRef, anoRef);
-        Double aportesMes = transacaoRepository.somarAportesReservaDoMes(mesRef, anoRef);
-        Integer totalMovimentacoes = transacaoRepository.contarTransacoesDoMes(mesRef, anoRef);
+        // Busca transações do mês e filtra por bancoId se informado
+        List<Transacao> transacoesMes = transacaoRepository.listarPorMesEAno(mesRef, anoRef);
+        if (bancoId != null) {
+            transacoesMes = transacoesMes.stream()
+                    .filter(t -> t.getBanco() != null && bancoId.equals(t.getBanco().getId()))
+                    .toList();
+        }
 
-        entradasBrutas = entradasBrutas != null ? entradasBrutas : 0.0;
-        saidasTotais = saidasTotais != null ? saidasTotais : 0.0;
-        aportesMes = aportesMes != null ? aportesMes : 0.0;
-        totalMovimentacoes = totalMovimentacoes != null ? totalMovimentacoes : 0;
+        double entradasBrutas = 0.0;
+        double saidasTotais = 0.0;
+        double aportesMes = 0.0;
 
-        Double lucroLiquido = entradasBrutas - saidasTotais;
+        for (Transacao t : transacoesMes) {
+            double valor = t.getValor() != null ? t.getValor() : 0.0;
+            if ("ENTRADA".equalsIgnoreCase(t.getTipo())) {
+                entradasBrutas += valor;
+                if (t.getBanco() != null && "RESERVA".equalsIgnoreCase(t.getBanco().getTipo())) {
+                    aportesMes += valor;
+                }
+            } else if ("SAIDA".equalsIgnoreCase(t.getTipo())) {
+                saidasTotais += valor;
+            }
+        }
+
+        double lucroLiquido = entradasBrutas - saidasTotais;
 
         resumo.setLucroLiquido(lucroLiquido);
         resumo.setEntradasBrutas(entradasBrutas);
         resumo.setSaidasTotais(saidasTotais);
         resumo.setAportesMes(aportesMes);
-        resumo.setOperacoesConcluidas(totalMovimentacoes);
+        resumo.setOperacoesConcluidas(transacoesMes.size());
 
-        // 2. Montar o Raio-X das Entradas e das Saídas dinamicamente pelas Categorias
-        resumo.setRaioX(montarRaioX("ENTRADA", mesRef, anoRef, entradasBrutas));
-        resumo.setRaioXSaidas(montarRaioX("SAIDA", mesRef, anoRef, saidasTotais));
+        // Montar Raio-X das Entradas e Saídas
+        resumo.setRaioX(montarRaioX(transacoesMes, "ENTRADA", entradasBrutas));
+        resumo.setRaioXSaidas(montarRaioX(transacoesMes, "SAIDA", saidasTotais));
+
+        // Montar evolução patrimonial ao longo do mês
+        resumo.setEvolucao(montarEvolucaoMes(transacoesMes, mesRef, anoRef, bancoId));
 
         return ResponseEntity.ok(resumo);
     }
 
-    private List<DashboardResumo.CategoriaResumo> montarRaioX(String tipo, int mes, int ano, double totalTipo) {
-        List<Object[]> categoriasObj = transacaoRepository.agruparPorTipoECategoria(tipo, mes, ano);
+    private List<DashboardResumo.CategoriaResumo> montarRaioX(
+            List<Transacao> transacoes, String tipo, double totalTipo) {
+
+        Map<String, Double> somaPorCategoria = new LinkedHashMap<>();
+        Map<String, String> corPorCategoria = new HashMap<>();
+
+        for (Transacao t : transacoes) {
+            if (!tipo.equalsIgnoreCase(t.getTipo())) continue;
+            Categoria c = t.getCategoria();
+            String nome = c != null && c.getNome() != null ? c.getNome() : "Sem Categoria";
+            String cor = c != null && c.getCor() != null ? c.getCor() : "gray";
+            double valor = t.getValor() != null ? t.getValor() : 0.0;
+
+            somaPorCategoria.merge(nome, valor, Double::sum);
+            corPorCategoria.putIfAbsent(nome, cor);
+        }
+
         List<DashboardResumo.CategoriaResumo> lista = new ArrayList<>();
+        somaPorCategoria.entrySet().stream()
+                .sorted((a, b) -> Double.compare(b.getValue(), a.getValue()))
+                .forEach(entry -> {
+                    String nomeCat = entry.getKey();
+                    Double valorC = entry.getValue();
+                    int percentual = totalTipo > 0 ? (int) Math.round((valorC / totalTipo) * 100) : 0;
+                    String[] classesCor = mapearCorTailwind(corPorCategoria.get(nomeCat));
 
-        for (Object[] obj : categoriasObj) {
-            String nomeCategoria = (String) obj[0];
-            String corCategoria = (String) obj[1];
-            Double valorC = (Double) obj[3];
+                    lista.add(new DashboardResumo.CategoriaResumo(
+                            nomeCat, valorC, percentual, classesCor[0], classesCor[1]
+                    ));
+                });
 
-            int percentual = totalTipo > 0 ? (int) Math.round((valorC / totalTipo) * 100) : 0;
-            String[] classesCor = mapearCorTailwind(corCategoria);
+        return lista;
+    }
 
-            lista.add(new DashboardResumo.CategoriaResumo(
-                    nomeCategoria,
-                    valorC,
-                    percentual,
-                    classesCor[0],
-                    classesCor[1]
+    private List<DashboardResumo.PontoEvolucao> montarEvolucaoMes(
+            List<Transacao> transacoesMes, int mes, int ano, UUID bancoId) {
+
+        List<Banco> bancos = bancoRepository.findAllByOrderByNomeAsc();
+        if (bancoId != null) {
+            bancos = bancos.stream().filter(b -> bancoId.equals(b.getId())).toList();
+        }
+
+        double baseTotal = 0.0;
+        double baseLiquido = 0.0;
+        for (Banco b : bancos) {
+            double s = b.getSaldoInicial() != null ? b.getSaldoInicial() : 0.0;
+            baseTotal += s;
+            if (!"RESERVA".equalsIgnoreCase(b.getTipo())) {
+                baseLiquido += s;
+            }
+        }
+
+        int ultimoDia = YearMonth.of(ano, mes).lengthOfMonth();
+        int[] marcos = {1, 10, 20, ultimoDia};
+        String mesNome = MESES_CURTOS[Math.max(0, Math.min(11, mes - 1))];
+
+        List<DashboardResumo.PontoEvolucao> pontos = new ArrayList<>();
+        for (int diaMarco : marcos) {
+            double deltaTotal = 0.0;
+            double deltaLiquido = 0.0;
+
+            for (Transacao t : transacoesMes) {
+                if (t.getData() != null && t.getData().getDayOfMonth() <= diaMarco) {
+                    if ("CREDITO".equalsIgnoreCase(t.getMetodoPagamento())) continue;
+                    double v = t.getValor() != null ? t.getValor() : 0.0;
+                    double sinal = "ENTRADA".equalsIgnoreCase(t.getTipo()) ? 1.0 : -1.0;
+                    deltaTotal += sinal * v;
+
+                    boolean isReserva = t.getBanco() != null && "RESERVA".equalsIgnoreCase(t.getBanco().getTipo());
+                    if (!isReserva) {
+                        deltaLiquido += sinal * v;
+                    }
+                }
+            }
+
+            String label = String.format("%02d/%s", diaMarco, mesNome);
+            pontos.add(new DashboardResumo.PontoEvolucao(
+                    label,
+                    baseTotal + deltaTotal,
+                    baseLiquido + deltaLiquido
             ));
         }
 
-        return lista;
+        return pontos;
     }
 
     private String[] mapearCorTailwind(String cor) {

@@ -2,17 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { FiltroData } from "@/components/ui/FiltroData";
 import { 
   TrendingUp, TrendingDown, Wallet, LineChart, 
-  Search, ChevronDown, Activity, ArrowUpRight,
-  ChevronLeft, ChevronRight
+  ChevronDown, Activity, ArrowUpRight,
+  ChevronLeft, ChevronRight, Landmark, Check
 } from 'lucide-react';
 import { BarraCategoria } from "@/components/dashboard/BarraCategoria";
 import { CardsResumo } from "@/components/dashboard/CardsResumo";
-import { GraficoCrescimento } from "@/components/dashboard/GraficoCrescimento";
+import { GraficoCrescimento, PontoEvolucaoDTO } from "@/components/dashboard/GraficoCrescimento";
 import { ChartCat } from "@/components/financer/ChartCat";
-import { API_URL, NOMES_MESES, formatarBRL } from "@/lib/util";
+import { API_URL, BancoDTO, NOMES_MESES, formatarBRL, getClassesCor } from "@/lib/util";
 
 interface CategoriaResumoAPI {
   categoria: string;
@@ -30,24 +29,38 @@ interface DashboardResumoAPI {
   operacoesConcluidas: number;
   raioX: CategoriaResumoAPI[];
   raioXSaidas: CategoriaResumoAPI[];
+  evolucao: PontoEvolucaoDTO[];
 }
 
 export default function Dashboard() {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
+
+  const [bancos, setBancos] = useState<BancoDTO[]>([]);
+  const [bancoFiltroId, setBancoFiltroId] = useState<string>('');
+  const [dropdownContaAberto, setDropdownContaAberto] = useState(false);
+
   const [resumo, setResumo] = useState<DashboardResumoAPI | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/bancos`)
+      .then((res) => res.json())
+      .then((lista) => setBancos(Array.isArray(lista) ? lista : []))
+      .catch((err) => console.error("Erro ao carregar bancos no dashboard:", err));
+  }, []);
 
   const carregarResumo = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/dashboard/resumo?mes=${mes}&ano=${ano}`);
+      const queryBanco = bancoFiltroId ? `&bancoId=${bancoFiltroId}` : '';
+      const res = await fetch(`${API_URL}/dashboard/resumo?mes=${mes}&ano=${ano}${queryBanco}`);
       if (res.ok) {
         setResumo(await res.json());
       }
     } catch (erro) {
       console.error("Erro ao carregar resumo do dashboard:", erro);
     }
-  }, [mes, ano]);
+  }, [mes, ano, bancoFiltroId]);
 
   useEffect(() => {
     carregarResumo();
@@ -67,12 +80,21 @@ export default function Dashboard() {
     setAno(novoAno);
   };
 
+  const limparFiltros = () => {
+    setBancoFiltroId('');
+    setMes(hoje.getMonth() + 1);
+    setAno(hoje.getFullYear());
+  };
+
+  const bancoSelecionado = bancos.find((b) => b.id === bancoFiltroId);
+
   const lucroLiquido = resumo?.lucroLiquido ?? 0;
   const entradasBrutas = resumo?.entradasBrutas ?? 0;
   const saidasTotais = resumo?.saidasTotais ?? 0;
   const aportesMes = resumo?.aportesMes ?? 0;
   const operacoesConcluidas = resumo?.operacoesConcluidas ?? 0;
   const raioX = resumo?.raioX ?? [];
+  const evolucao = resumo?.evolucao ?? [];
 
   const dadosGraficoEntradas = raioX.map((item) => ({
     categoria: item.categoria,
@@ -85,46 +107,103 @@ export default function Dashboard() {
     <div className="flex flex-col p-4 md:p-6 gap-6 max-w-350 mx-auto">
       
       {/* 1. CABEÇALHO E FILTROS AVANÇADOS */}
-      <div className="p-5 border bg-surface/50 border-border rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 border bg-surface/50 border-border rounded-xl flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-medium text-brand">Filtros Avançados</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-medium text-brand">Filtros do Painel</h2>
           </div>
           
-          <div className="flex flex-col gap-5 md:flex-row">
-            <div className="flex items-center gap-2 px-4 py-2.5 border rounded-lg bg-[#18181b] border-border md:w-64">
-              <Search className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-500">Nome da conta...</span>
-            </div>
-            
-            <FiltroData />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            {/* Dropdown Real de Contas/Bancos */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDropdownContaAberto(!dropdownContaAberto)}
+                className="flex items-center justify-between gap-4 px-4 py-2.5 border rounded-xl bg-[#18181b] border-border hover:border-gray-500 min-w-56 text-left transition-colors"
+              >
+                <span className="text-sm text-white font-medium">
+                  {bancoSelecionado ? bancoSelecionado.nome : 'Todas as contas'}
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              </button>
 
-            <div className="flex items-center justify-between gap-4 px-4 py-2.5 border rounded-lg bg-[#18181b] border-border min-w-50">
-              <span className="text-sm text-gray-400">Todas as contas</span>
-              <ChevronDown className="w-4 h-4 text-gray-500" />
+              {dropdownContaAberto && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setDropdownContaAberto(false)} />
+                  <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl border border-border bg-[#131316] p-2 shadow-2xl flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBancoFiltroId('');
+                        setDropdownContaAberto(false);
+                      }}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm transition-colors ${
+                        !bancoFiltroId ? 'bg-brand/15 text-brand font-bold' : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <span>Todas as contas</span>
+                      {!bancoFiltroId && <Check className="w-4 h-4 text-brand" />}
+                    </button>
+
+                    {bancos.map((b) => {
+                      const cores = getClassesCor(b.cor);
+                      const isSel = bancoFiltroId === b.id;
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => {
+                            setBancoFiltroId(b.id);
+                            setDropdownContaAberto(false);
+                          }}
+                          className={`flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                            isSel ? 'bg-brand/15 border border-brand/40' : 'hover:bg-white/5'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${cores.border} ${cores.bgSoft} ${cores.text}`}>
+                              <Landmark className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="text-sm text-white">{b.nome}</span>
+                          </div>
+                          {isSel && <Check className="w-4 h-4 text-brand" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Seletor de Mês/Ano Real */}
+            <div className="flex items-center justify-between gap-3 px-4 py-2 border rounded-xl bg-[#18181b] border-border">
+              <button
+                type="button"
+                onClick={() => mudarMes(-1)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-border/50 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-bold text-white min-w-[130px] text-center">
+                {NOMES_MESES[mes - 1]} {ano}
+              </span>
+              <button
+                type="button"
+                onClick={() => mudarMes(1)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-border/50 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button 
+              type="button"
+              onClick={limparFiltros}
+              className="text-sm text-gray-500 transition-colors hover:text-gray-300"
+            >
+              Limpar Filtros
+            </button>
           </div>
-        </div>
-
-        {/* Seletor de Mês/Ano Real */}
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border rounded-xl bg-[#18181b] border-border">
-          <button
-            type="button"
-            onClick={() => mudarMes(-1)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-border/50 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-bold text-white min-w-[130px] text-center">
-            {NOMES_MESES[mes - 1]} {ano}
-          </span>
-          <button
-            type="button"
-            onClick={() => mudarMes(1)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-border/50 transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
@@ -172,8 +251,8 @@ export default function Dashboard() {
       {/* ÁREA INFERIOR: GRÁFICOS */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         
-        {/* 3. GRÁFICO DE CRESCIMENTO */}
-        <GraficoCrescimento />
+        {/* 3. GRÁFICO DE CRESCIMENTO DINÂMICO */}
+        <GraficoCrescimento dados={evolucao} />
 
         {/* 4. RAIO-X DAS ENTRADAS (Ocupa 1/3 da tela) */}
         <div className="col-span-1 p-5 border bg-surface/40 border-border/80 rounded-xl flex flex-col justify-between">
