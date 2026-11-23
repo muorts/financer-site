@@ -13,7 +13,7 @@ import { SeletorMetodoPagamento } from '@/components/cadastro/PaymentSelect';
 import { InputSelect } from '@/components/ui/InputSelect';
 import { 
   API_URL, BancoDTO, CategoriaDTO, parseValorMonetario, 
-  formatarBRL, getIconePorId, getClassesCor 
+  formatarBRL, getIconePorId, getClassesCor, obterDataLocalISO, extrairMensagemErro 
 } from '@/lib/util';
 
 export default function NovaTransacao() {
@@ -23,7 +23,7 @@ export default function NovaTransacao() {
   const [metodo, setMetodo] = useState<'pix' | 'debito' | 'credito'>('pix');
   const [valor, setValor] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(() => obterDataLocalISO());
   const [totalParcelas, setTotalParcelas] = useState(1);
 
   // Listas vindas do Banco de Dados
@@ -83,6 +83,10 @@ export default function NovaTransacao() {
       setErroMsg('Informe um valor maior que zero.');
       return;
     }
+    if (metodo === 'credito' && !bancoSelecionado) {
+      setErroMsg('Selecione o banco/cartão de crédito para lançar na fatura.');
+      return;
+    }
 
     setSalvando(true);
     try {
@@ -106,8 +110,7 @@ export default function NovaTransacao() {
       if (res.ok) {
         router.push('/financer/visualizacao_geral');
       } else {
-        const texto = await res.text();
-        setErroMsg(texto || 'Não foi possível salvar a transação.');
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível salvar a transação.'));
       }
     } catch (erro) {
       console.error('Erro ao registrar transação:', erro);

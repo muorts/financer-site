@@ -1,17 +1,19 @@
 import { ElementType } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface ItemFaturaProps {
+  id?: string;
   descricao: string;
   data: string;
   valor: string;
   parcelas: string;
   icon: ElementType;
+  onDelete?: (id: string) => void;
 }
 
-export function ItemFatura({ descricao, data, valor, parcelas, icon: Icone }: ItemFaturaProps) {
+export function ItemFatura({ id, descricao, data, valor, parcelas, icon: Icone, onDelete }: ItemFaturaProps) {
   return (
-    <div className="flex items-center justify-between p-4 transition-colors border rounded-xl bg-[#18181b]/50 border-border/50 hover:bg-[#18181b] cursor-pointer">
+    <div className="flex items-center justify-between p-4 transition-colors border rounded-xl bg-[#18181b]/50 border-border/50 hover:bg-[#18181b]">
       
       {/* Esquerda: Ícone e Detalhes */}
       <div className="flex items-center gap-4">
@@ -28,10 +30,19 @@ export function ItemFatura({ descricao, data, valor, parcelas, icon: Icone }: It
         </div>
       </div>
 
-      {/* Direita: Valor e Seta */}
+      {/* Direita: Valor e Ação de Excluir */}
       <div className="flex items-center gap-3">
         <span className="font-mono font-medium text-white">{valor}</span>
-        <ChevronRight className="w-4 h-4 text-gray-600" />
+        {onDelete && id && (
+          <button
+            type="button"
+            onClick={() => onDelete(id)}
+            className="p-2 text-gray-500 transition-colors rounded-lg hover:text-danger hover:bg-danger/10"
+            title="Excluir lançamento"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
     </div>

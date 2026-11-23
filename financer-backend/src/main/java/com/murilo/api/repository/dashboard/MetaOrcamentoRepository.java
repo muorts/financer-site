@@ -14,4 +14,6 @@ public interface MetaOrcamentoRepository extends JpaRepository<MetaOrcamento, UU
     List<MetaOrcamento> findByMesAndAno(Integer mes, Integer ano);
 
     Optional<MetaOrcamento> findByCategoriaIdAndMesAndAno(UUID categoriaId, Integer mes, Integer ano);
+
+    boolean existsByCategoriaId(UUID categoriaId);
 }

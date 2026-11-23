@@ -1,3 +1,4 @@
+import { ElementType } from 'react';
 import {
   Utensils, Coffee, ShoppingBag, Gamepad2, Car, Smartphone,
   Home, Plane, Heart, Zap, Globe, Target, Swords, Trophy,
@@ -36,6 +37,7 @@ export interface TransacaoDTO {
   banco?: BancoDTO | null;
   parcelaAtual?: number;
   totalParcelas?: number;
+  grupoParcelamentoId?: string | null;
   parcelasFormatadas?: string;
   mesFatura?: number;
   anoFatura?: number;
@@ -98,7 +100,35 @@ export function parseValorMonetario(valorStr: string): number {
   if (limpo.includes(',')) {
     return parseFloat(limpo.replace(',', '.')) || 0;
   }
+  // Se estiver no formato de milhar brasileiro sem centavos (ex: 1.500 ou 1.000.000)
+  if (/^\d{1,3}(\.\d{3})+$/.test(limpo)) {
+    return parseFloat(limpo.replace(/\./g, '')) || 0;
+  }
   return parseFloat(limpo) || 0;
+}
+
+export function obterDataLocalISO(dataRef: Date = new Date()): string {
+  const ano = dataRef.getFullYear();
+  const mes = String(dataRef.getMonth() + 1).padStart(2, '0');
+  const dia = String(dataRef.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+export async function extrairMensagemErro(res: Response, fallback: string): Promise<string> {
+  try {
+    const texto = await res.text();
+    if (!texto) return fallback;
+    try {
+      const json = JSON.parse(texto);
+      if (typeof json?.erro === 'string' && json.erro.trim()) return json.erro;
+      if (typeof json?.message === 'string' && json.message.trim()) return json.message;
+    } catch {
+      return texto;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function formatarDataCurta(dataIso: string): string {
@@ -110,7 +140,7 @@ export function formatarDataCurta(dataIso: string): string {
   return `${dia} de ${NOMES_MESES_CURTOS[mesIdx] || partes[1]}`;
 }
 
-export const MAPA_ICONES: Record<string, any> = {
+export const MAPA_ICONES: Record<string, ElementType> = {
   utensils: Utensils,
   coffee: Coffee,
   shopping: ShoppingBag,

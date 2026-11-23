@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CardTransacao } from "@/components/financer/CardTransacao";
 import { Filters } from "@/components/financer/filters";
 import { ChartCat } from "@/components/financer/ChartCat";
+import { ModalExcluirTransacao } from "@/components/financer/ModalExcluirTransacao";
 import { Activity, TrendingUp, TrendingDown, Plus } from 'lucide-react';
 import { 
   API_URL, TransacaoDTO, ResumoMetasDTO, 
-  formatarBRL, formatarDataCurta 
+  formatarBRL, formatarDataCurta, extrairMensagemErro 
 } from '@/lib/util';
 
 interface CategoriaResumoAPI {
@@ -38,33 +39,58 @@ export default function VisaoGeralFinanceiro() {
   const [transacoes, setTransacoes] = useState<TransacaoDTO[]>([]);
   const [resumo, setResumo] = useState<DashboardResumoAPI | null>(null);
   const [resumoMetas, setResumoMetas] = useState<ResumoMetasDTO | null>(null);
-
-  const carregarDados = useCallback(async () => {
-    try {
-      const [resTrans, resDash, resMetas] = await Promise.all([
-        fetch(`${API_URL}/transacoes?mes=${mes}&ano=${ano}`),
-        fetch(`${API_URL}/dashboard/resumo?mes=${mes}&ano=${ano}`),
-        fetch(`${API_URL}/metas?mes=${mes}&ano=${ano}`),
-      ]);
-
-      if (resTrans.ok) {
-        const lista = await resTrans.json();
-        setTransacoes(Array.isArray(lista) ? lista : []);
-      }
-      if (resDash.ok) {
-        setResumo(await resDash.json());
-      }
-      if (resMetas.ok) {
-        setResumoMetas(await resMetas.json());
-      }
-    } catch (erro) {
-      console.error('Erro ao carregar Visão Geral Financeira:', erro);
-    }
-  }, [mes, ano]);
+  const [erroMsg, setErroMsg] = useState('');
+  const [transacaoParaExcluir, setTransacaoParaExcluir] = useState<TransacaoDTO | null>(null);
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+    let ativo = true;
+
+    async function carregarDados() {
+      try {
+        const [resTrans, resDash, resMetas] = await Promise.all([
+          fetch(`${API_URL}/transacoes?mes=${mes}&ano=${ano}`),
+          fetch(`${API_URL}/dashboard/resumo?mes=${mes}&ano=${ano}`),
+          fetch(`${API_URL}/metas?mes=${mes}&ano=${ano}`),
+        ]);
+        if (!ativo) return;
+
+        if (!resTrans.ok || !resDash.ok || !resMetas.ok) {
+          setErroMsg('Alguns dados financeiros não puderam ser carregados do servidor.');
+        } else {
+          setErroMsg('');
+        }
+
+        if (resTrans.ok) {
+          const lista = await resTrans.json();
+          if (ativo) setTransacoes(Array.isArray(lista) ? lista : []);
+        } else {
+          setTransacoes([]);
+        }
+        if (resDash.ok) {
+          const dash = await resDash.json();
+          if (ativo) setResumo(dash);
+        } else {
+          setResumo(null);
+        }
+        if (resMetas.ok) {
+          const metas = await resMetas.json();
+          if (ativo) setResumoMetas(metas);
+        } else {
+          setResumoMetas(null);
+        }
+      } catch (erro) {
+        if (!ativo) return;
+        console.error('Erro ao carregar Visão Geral Financeira:', erro);
+        setErroMsg('Não foi possível conectar ao servidor backend.');
+      }
+    }
+
+    void carregarDados();
+    return () => {
+      ativo = false;
+    };
+  }, [mes, ano, versao]);
 
   const mudarMes = (delta: number) => {
     let novoMes = mes + delta;
@@ -80,14 +106,19 @@ export default function VisaoGeralFinanceiro() {
     setAno(novoAno);
   };
 
-  const handleExcluirTransacao = async (id: string) => {
+  const handleConfirmarExclusao = async (id: string, deletarTodasParcelas: boolean) => {
+    setErroMsg('');
     try {
-      const res = await fetch(`${API_URL}/transacoes/${id}`, { method: 'DELETE' });
+      const query = deletarTodasParcelas ? '?deletarTodasParcelas=true' : '';
+      const res = await fetch(`${API_URL}/transacoes/${id}${query}`, { method: 'DELETE' });
       if (res.ok) {
-        await carregarDados();
+        setVersao((v) => v + 1);
+      } else {
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível excluir a transação.'));
       }
     } catch (erro) {
       console.error('Erro ao excluir transação:', erro);
+      setErroMsg('Erro de conexão ao excluir a transação.');
     }
   };
 
@@ -109,8 +140,9 @@ export default function VisaoGeralFinanceiro() {
   }));
 
   const tetoOrcamento = resumoMetas?.orcamentoTotal || 0;
-  const gastoNoMes = resumo?.saidasTotais || 0;
-  const restanteOrcamento = Math.max(tetoOrcamento - gastoNoMes, 0);
+  // Quando há metas definidas, usa o mesmo gastoTotal da tela de Metas/Orçamentos para consistência
+  const gastoNoMes = tetoOrcamento > 0 ? (resumoMetas?.gastoTotal || 0) : (resumo?.saidasTotais || 0);
+  const saldoOrcamento = tetoOrcamento - gastoNoMes;
   const percentualOrcamento = tetoOrcamento > 0 ? Math.min((gastoNoMes / tetoOrcamento) * 100, 100) : 0;
 
   return (
@@ -137,8 +169,12 @@ export default function VisaoGeralFinanceiro() {
         <div className="flex flex-col justify-center flex-1 w-full gap-4 lg:pl-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white">Orçamento do Mês</h2>
-            <span className="text-sm font-medium text-gray-400">
-              {tetoOrcamento > 0 ? `Restam ${formatarBRL(restanteOrcamento)}` : 'Sem meta definida'}
+            <span className={`text-sm font-medium ${tetoOrcamento > 0 && saldoOrcamento < 0 ? 'text-danger' : 'text-gray-400'}`}>
+              {tetoOrcamento <= 0
+                ? 'Sem meta definida'
+                : saldoOrcamento < 0
+                  ? `Excedeu ${formatarBRL(Math.abs(saldoOrcamento))}`
+                  : `Restam ${formatarBRL(saldoOrcamento)}`}
             </span>
           </div>
           
@@ -172,6 +208,12 @@ export default function VisaoGeralFinanceiro() {
           </div>
         </div>
       </div>
+
+      {erroMsg && (
+        <div className="p-4 text-sm font-medium text-danger bg-danger/10 border border-danger/30 rounded-xl">
+          {erroMsg}
+        </div>
+      )}
 
       {/* 2. BLOCO FLUTUANTE: FILTROS */}
       <Filters 
@@ -210,8 +252,9 @@ export default function VisaoGeralFinanceiro() {
                     valor={formatarBRL(t.valor)}
                     categoria={t.categoria?.nome || 'Sem Categoria'}
                     bancoNome={t.banco?.nome}
+                    metodoPagamento={t.metodoPagamento}
                     data={formatarDataCurta(t.data)}
-                    onDelete={handleExcluirTransacao}
+                    onDelete={() => setTransacaoParaExcluir(t)}
                   />
                 ))
               )}
@@ -235,8 +278,10 @@ export default function VisaoGeralFinanceiro() {
                     valor={formatarBRL(t.valor)}
                     categoria={t.categoria?.nome || 'Sem Categoria'}
                     bancoNome={t.banco?.nome}
+                    metodoPagamento={t.metodoPagamento}
+                    parcelas={(t.totalParcelas ?? 1) > 1 ? (t.parcelasFormatadas || `${t.parcelaAtual || 1}/${t.totalParcelas}`) : undefined}
                     data={formatarDataCurta(t.data)}
-                    onDelete={handleExcluirTransacao}
+                    onDelete={() => setTransacaoParaExcluir(t)}
                   />
                 ))
               )}
@@ -245,6 +290,12 @@ export default function VisaoGeralFinanceiro() {
 
         </div>
       </div>
+
+      <ModalExcluirTransacao
+        transacao={transacaoParaExcluir}
+        onClose={() => setTransacaoParaExcluir(null)}
+        onConfirmar={handleConfirmarExclusao}
+      />
 
     </div>
   );

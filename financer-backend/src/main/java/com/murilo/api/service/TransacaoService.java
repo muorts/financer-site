@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -49,19 +50,26 @@ public class TransacaoService {
         Categoria categoria = null;
         if (request.getCategoriaId() != null) {
             categoria = categoriaRepository.findById(request.getCategoriaId())
-                    .orElseThrow(() -> new RuntimeException("Categoria informada não encontrada."));
+                    .orElseThrow(() -> new NoSuchElementException("Categoria informada não encontrada."));
         }
 
         Banco banco = null;
         if (request.getBancoId() != null) {
             banco = bancoRepository.findById(request.getBancoId())
-                    .orElseThrow(() -> new RuntimeException("Banco informado não encontrado."));
+                    .orElseThrow(() -> new NoSuchElementException("Banco informado não encontrado."));
         }
 
         // ==========================================
         // CASO 1: CARTÃO DE CRÉDITO (FATURA E PARCELAS)
         // ==========================================
         if ("CREDITO".equals(metodo)) {
+            if ("ENTRADA".equals(tipo)) {
+                throw new IllegalArgumentException("Receitas (entradas) não podem ser registradas no cartão de crédito.");
+            }
+            if (banco == null) {
+                throw new IllegalArgumentException("Selecione o banco/cartão para compras no cartão de crédito.");
+            }
+
             int totalParcelas = (request.getTotalParcelas() != null && request.getTotalParcelas() > 1)
                     ? request.getTotalParcelas()
                     : 1;
@@ -69,16 +77,21 @@ public class TransacaoService {
             // Define em qual mês/ano de fatura a 1ª parcela entra com base no dia de fechamento do banco
             YearMonth competenciaInicial = calcularCompetenciaInicialFatura(dataCompra, banco);
             UUID grupoId = totalParcelas > 1 ? UUID.randomUUID() : null;
-            double valorPorParcela = Math.round((request.getValor() / totalParcelas) * 100.0) / 100.0;
+
+            // Distribui o valor entre as parcelas sem perder centavos no arredondamento
+            double valorTotal = Math.round(request.getValor() * 100.0) / 100.0;
+            double valorParcelaBase = Math.floor((valorTotal / totalParcelas) * 100.0) / 100.0;
+            double valorUltimaParcela = Math.round((valorTotal - valorParcelaBase * (totalParcelas - 1)) * 100.0) / 100.0;
 
             Transacao primeiraParcela = null;
 
             for (int i = 1; i <= totalParcelas; i++) {
                 YearMonth competenciaParcela = competenciaInicial.plusMonths(i - 1);
+                double valorDestaParcela = (i == totalParcelas) ? valorUltimaParcela : valorParcelaBase;
 
                 Transacao parcela = new Transacao();
                 parcela.setDescricao(request.getDescricao());
-                parcela.setValor(valorPorParcela);
+                parcela.setValor(valorDestaParcela);
                 parcela.setTipo(tipo);
                 parcela.setMetodoPagamento("CREDITO");
                 parcela.setData(i == 1 ? dataCompra : dataCompra.plusMonths(i - 1));
@@ -129,7 +142,7 @@ public class TransacaoService {
     @Transactional
     public void deletarTransacao(UUID id, boolean deletarTodasParcelas) {
         Transacao transacao = transacaoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transação não encontrada."));
+                .orElseThrow(() -> new NoSuchElementException("Transação não encontrada."));
 
         // Se for compra parcelada no crédito e o usuário pediu para apagar todas as parcelas juntas
         if (deletarTodasParcelas && transacao.getGrupoParcelamentoId() != null) {
@@ -177,7 +190,7 @@ public class TransacaoService {
         int ano = anoParam != null ? anoParam : hoje.getYear();
 
         Banco banco = bancoRepository.findById(bancoId)
-                .orElseThrow(() -> new RuntimeException("Banco não encontrado."));
+                .orElseThrow(() -> new NoSuchElementException("Banco não encontrado."));
 
         return montarFaturaBanco(banco, mes, ano);
     }

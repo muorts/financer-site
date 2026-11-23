@@ -11,11 +11,13 @@ import { CardSelecao } from '@/components/ui/CardSelect';
 import { SeletorCores } from '@/components/ui/ColorSelect';
 import { SeletorIcones } from '@/components/ui/IconSelect';
 import { NameInput } from '@/components/ui/NameInput';
-import { API_URL, CategoriaDTO, getIconePorId, getClassesCor } from '@/lib/util';
+import { API_URL, CategoriaDTO, getIconePorId, getClassesCor, extrairMensagemErro } from '@/lib/util';
 
 export default function CadastroCategoria() {
   const [categorias, setCategorias] = useState<CategoriaDTO[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erroMsg, setErroMsg] = useState('');
 
   // Estados do Formulário
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -27,9 +29,15 @@ export default function CadastroCategoria() {
   // Carregar categorias do Backend
   useEffect(() => {
     fetch(`${API_URL}/categorias`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao carregar categorias.'));
+        return res.json();
+      })
       .then((data) => setCategorias(Array.isArray(data) ? data : []))
-      .catch((err) => console.error('Erro ao buscar categorias:', err))
+      .catch((err) => {
+        console.error('Erro ao buscar categorias:', err);
+        setErroMsg(err instanceof Error ? err.message : 'Erro ao conectar com o servidor.');
+      })
       .finally(() => setCarregando(false));
   }, []);
 
@@ -43,7 +51,11 @@ export default function CadastroCategoria() {
 
   // Função para Salvar (Criar ou Atualizar no PostgreSQL)
   const handleSalvar = async () => {
-    if (!nome.trim()) return;
+    setErroMsg('');
+    if (!nome.trim()) {
+      setErroMsg('Informe o nome da categoria.');
+      return;
+    }
 
     const payload = {
       nome: nome.trim(),
@@ -52,6 +64,7 @@ export default function CadastroCategoria() {
       icone: iconeSelecionado,
     };
 
+    setSalvando(true);
     try {
       if (editandoId) {
         const res = await fetch(`${API_URL}/categorias/${editandoId}`, {
@@ -63,6 +76,8 @@ export default function CadastroCategoria() {
           const atualizada: CategoriaDTO = await res.json();
           setCategorias(categorias.map((cat) => (cat.id === editandoId ? atualizada : cat)));
           resetarFormulario();
+        } else {
+          setErroMsg(await extrairMensagemErro(res, 'Não foi possível atualizar a categoria.'));
         }
       } else {
         const res = await fetch(`${API_URL}/categorias`, {
@@ -74,15 +89,21 @@ export default function CadastroCategoria() {
           const novaCat: CategoriaDTO = await res.json();
           setCategorias([...categorias, novaCat]);
           resetarFormulario();
+        } else {
+          setErroMsg(await extrairMensagemErro(res, 'Não foi possível criar a categoria.'));
         }
       }
     } catch (erro) {
       console.error('Erro ao salvar categoria:', erro);
+      setErroMsg('Erro de conexão com o servidor.');
+    } finally {
+      setSalvando(false);
     }
   };
 
   // Função para carregar dados no form para edição
   const handleEditar = (cat: CategoriaDTO) => {
+    setErroMsg('');
     setEditandoId(cat.id);
     setNome(cat.nome);
     setTipo(cat.tipo?.toLowerCase() === 'entrada' ? 'entrada' : 'saida');
@@ -92,14 +113,18 @@ export default function CadastroCategoria() {
 
   // Função para Excluir
   const handleExcluir = async (id: string) => {
+    setErroMsg('');
     try {
       const res = await fetch(`${API_URL}/categorias/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setCategorias(categorias.filter((cat) => cat.id !== id));
         if (editandoId === id) resetarFormulario();
+      } else {
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível excluir a categoria.'));
       }
     } catch (erro) {
       console.error('Erro ao excluir categoria:', erro);
+      setErroMsg('Erro de conexão ao excluir a categoria.');
     }
   };
 
@@ -246,6 +271,12 @@ export default function CadastroCategoria() {
 
       </div>
 
+      {erroMsg && (
+        <div className="p-4 text-sm font-medium text-danger bg-danger/10 border border-danger/30 rounded-xl">
+          {erroMsg}
+        </div>
+      )}
+
       {/* BLOCO 4: BOTÕES DE AÇÃO */}
       <div className="flex items-center justify-end p-5 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
         <Link 
@@ -255,11 +286,13 @@ export default function CadastroCategoria() {
           Voltar
         </Link>
         <button 
+          type="button"
           onClick={handleSalvar}
-          className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors ml-4 shadow-[0_0_15px_rgba(var(--brand),0.3)]"
+          disabled={salvando}
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors ml-4 shadow-lg shadow-brand/25 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          {editandoId ? 'Salvar Alterações' : 'Salvar Categoria'}
+          {salvando ? 'Salvando...' : editandoId ? 'Salvar Alterações' : 'Salvar Categoria'}
         </button>
       </div>
 

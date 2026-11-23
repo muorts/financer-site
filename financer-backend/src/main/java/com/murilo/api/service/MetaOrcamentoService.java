@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -73,7 +74,7 @@ public class MetaOrcamentoService {
         }
 
         Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada."));
+                .orElseThrow(() -> new NoSuchElementException("Categoria não encontrada."));
 
         LocalDate hoje = LocalDate.now();
         int mes = request.getMes() != null ? request.getMes() : hoje.getMonthValue();
@@ -95,7 +96,7 @@ public class MetaOrcamentoService {
     @Transactional
     public void deletarMeta(UUID id) {
         if (!metaOrcamentoRepository.existsById(id)) {
-            throw new RuntimeException("Meta não encontrada.");
+            throw new NoSuchElementException("Meta não encontrada.");
         }
         metaOrcamentoRepository.deleteById(id);
     }

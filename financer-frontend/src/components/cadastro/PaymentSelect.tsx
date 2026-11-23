@@ -11,17 +11,21 @@ export function SeletorMetodoPagamento({ metodo, onChange, tipo }: SeletorMetodo
   const bgPrimario = tipo === 'entrada' ? 'bg-success/10' : 'bg-danger/10';
   const borderPrimario = tipo === 'entrada' ? 'border-success' : 'border-danger';
 
-  // Usamos um array para não repetir código HTML!
-  const opcoes = [
+  // Para receitas (entrada), ocultamos Crédito pois cartão de crédito representa despesa/fatura
+  const todasOpcoes = [
     { id: 'pix', label: 'Pix', icon: Smartphone },
     { id: 'debito', label: 'Débito', icon: CreditCard },
     { id: 'credito', label: 'Crédito', icon: CreditCard },
   ] as const;
 
+  const opcoes = tipo === 'entrada'
+    ? todasOpcoes.filter((o) => o.id !== 'credito')
+    : todasOpcoes;
+
   return (
     <div className="flex flex-col gap-3">
       <label className="text-sm font-medium text-gray-300">Método de Pagamento</label>
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${opcoes.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {opcoes.map((opcao) => {
           const isAtivo = metodo === opcao.id;
           const Icone = opcao.icon;
@@ -29,6 +33,7 @@ export function SeletorMetodoPagamento({ metodo, onChange, tipo }: SeletorMetodo
           return (
             <button
               key={opcao.id}
+              type="button"
               onClick={() => onChange(opcao.id)}
               className={`relative flex flex-col items-center justify-center p-4 border rounded-xl transition-all ${
                 isAtivo 

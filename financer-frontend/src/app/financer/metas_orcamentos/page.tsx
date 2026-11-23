@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -9,7 +9,7 @@ import { ResumoOrcamentoGlobal } from '@/components/financer/ResumoOrcamentoGlob
 import { ListaLimitesCategoria } from '@/components/financer/ListaLimitesCategoria';
 import { 
   API_URL, CategoriaDTO, ResumoMetasDTO, 
-  NOMES_MESES, getIconePorId 
+  NOMES_MESES, getIconePorId, extrairMensagemErro 
 } from '@/lib/util';
 
 export default function Orcamentos() {
@@ -18,6 +18,7 @@ export default function Orcamentos() {
   const [ano, setAno] = useState(hoje.getFullYear());
 
   const [modalAberto, setModalAberto] = useState(false);
+  const [erroMsg, setErroMsg] = useState('');
   const [resumo, setResumo] = useState<ResumoMetasDTO>({
     mes: hoje.getMonth() + 1,
     ano: hoje.getFullYear(),
@@ -27,30 +28,44 @@ export default function Orcamentos() {
     metas: [],
   });
   const [categorias, setCategorias] = useState<CategoriaDTO[]>([]);
-
-  const carregarDados = useCallback(async () => {
-    try {
-      const [resMetas, resCats] = await Promise.all([
-        fetch(`${API_URL}/metas?mes=${mes}&ano=${ano}`),
-        fetch(`${API_URL}/categorias`),
-      ]);
-      if (resMetas.ok) {
-        const dadosMetas: ResumoMetasDTO = await resMetas.json();
-        setResumo(dadosMetas);
-      }
-      if (resCats.ok) {
-        const listaCats: CategoriaDTO[] = await resCats.json();
-        const catsSaida = listaCats.filter((c) => c.tipo?.toUpperCase() === 'SAIDA');
-        setCategorias(catsSaida.length > 0 ? catsSaida : listaCats);
-      }
-    } catch (erro) {
-      console.error('Erro ao carregar metas e orçamentos:', erro);
-    }
-  }, [mes, ano]);
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
-    carregarDados();
-  }, [carregarDados]);
+    let ativo = true;
+
+    async function carregarDados() {
+      try {
+        const [resMetas, resCats] = await Promise.all([
+          fetch(`${API_URL}/metas?mes=${mes}&ano=${ano}`),
+          fetch(`${API_URL}/categorias?tipo=SAIDA`),
+        ]);
+        if (!ativo) return;
+
+        if (resMetas.ok) {
+          const dadosMetas: ResumoMetasDTO = await resMetas.json();
+          if (!ativo) return;
+          setErroMsg('');
+          setResumo(dadosMetas);
+        } else {
+          setErroMsg(await extrairMensagemErro(resMetas, 'Não foi possível carregar as metas do mês.'));
+        }
+        if (resCats.ok) {
+          const listaCats: CategoriaDTO[] = await resCats.json();
+          if (!ativo) return;
+          setCategorias(Array.isArray(listaCats) ? listaCats : []);
+        }
+      } catch (erro) {
+        if (!ativo) return;
+        console.error('Erro ao carregar metas e orçamentos:', erro);
+        setErroMsg('Não foi possível conectar ao servidor backend.');
+      }
+    }
+
+    void carregarDados();
+    return () => {
+      ativo = false;
+    };
+  }, [mes, ano, versao]);
 
   const mudarMes = (delta: number) => {
     let novoMes = mes + delta;
@@ -72,15 +87,24 @@ export default function Orcamentos() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categoriaId, limiteMaximo, mes, ano }),
     });
-    if (res.ok) {
-      await carregarDados();
+    if (!res.ok) {
+      throw new Error(await extrairMensagemErro(res, 'Não foi possível salvar a meta.'));
     }
+    setVersao((v) => v + 1);
   };
 
   const handleExcluirMeta = async (id: string) => {
-    const res = await fetch(`${API_URL}/metas/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      await carregarDados();
+    setErroMsg('');
+    try {
+      const res = await fetch(`${API_URL}/metas/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setVersao((v) => v + 1);
+      } else {
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível excluir a meta.'));
+      }
+    } catch (erro) {
+      console.error('Erro ao excluir meta:', erro);
+      setErroMsg('Erro de conexão ao excluir a meta.');
     }
   };
 
@@ -132,6 +156,12 @@ export default function Orcamentos() {
         </div>
       </div>
 
+      {erroMsg && (
+        <div className="p-4 text-sm font-medium text-danger bg-danger/10 border border-danger/30 rounded-xl">
+          {erroMsg}
+        </div>
+      )}
+
       {/* BLOCO 2: VISÃO GERAL DO MÊS (COMPONENTE) */}
       <ResumoOrcamentoGlobal 
         orcamentoTotal={resumo.orcamentoTotal} 
@@ -152,8 +182,9 @@ export default function Orcamentos() {
         </div>
         
         <button 
+          type="button"
           onClick={() => setModalAberto(true)}
-          className="flex items-center justify-center w-12 h-12 md:w-auto md:h-auto md:px-6 md:py-3 gap-2 font-bold transition-colors rounded-xl text-background bg-brand hover:bg-brand/90 shadow-[0_0_15px_rgba(251,169,76,0.3)]"
+          className="flex items-center justify-center w-12 h-12 md:w-auto md:h-auto md:px-6 md:py-3 gap-2 font-bold transition-colors rounded-xl text-background bg-brand hover:bg-brand/90 shadow-lg shadow-brand/25"
         >
           <Plus className="w-5 h-5 md:w-4 md:h-4" />
           <span className="hidden md:block">Nova Meta</span>

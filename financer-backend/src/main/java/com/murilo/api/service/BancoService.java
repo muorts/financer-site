@@ -2,11 +2,13 @@ package com.murilo.api.service;
 
 import com.murilo.api.model.dashboard.Banco;
 import com.murilo.api.repository.dashboard.BancoRepository;
+import com.murilo.api.repository.dashboard.TransacaoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -14,6 +16,7 @@ import java.util.UUID;
 public class BancoService {
 
     private final BancoRepository bancoRepository;
+    private final TransacaoRepository transacaoRepository;
 
     public List<Banco> listarTodos() {
         return bancoRepository.findAllByOrderByNomeAsc();
@@ -21,7 +24,7 @@ public class BancoService {
 
     public Banco buscarPorId(UUID id) {
         return bancoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Banco/Conta não encontrado."));
+                .orElseThrow(() -> new NoSuchElementException("Banco/Conta não encontrado."));
     }
 
     @Transactional
@@ -47,6 +50,8 @@ public class BancoService {
         if (banco.getDiaVencimento() == null) {
             banco.setDiaVencimento(10);
         }
+        validarDia(banco.getDiaFechamento(), "fechamento");
+        validarDia(banco.getDiaVencimento(), "vencimento");
 
         return bancoRepository.save(banco);
     }
@@ -65,14 +70,18 @@ public class BancoService {
             existente.setCor(dadosAtualizados.getCor());
         }
         if (dadosAtualizados.getSaldoInicial() != null) {
-            double diferenca = dadosAtualizados.getSaldoInicial() - existente.getSaldoInicial();
+            double saldoInicialAtual = existente.getSaldoInicial() != null ? existente.getSaldoInicial() : 0.0;
+            double saldoAtual = existente.getSaldoAtual() != null ? existente.getSaldoAtual() : 0.0;
+            double diferenca = dadosAtualizados.getSaldoInicial() - saldoInicialAtual;
             existente.setSaldoInicial(dadosAtualizados.getSaldoInicial());
-            existente.setSaldoAtual(existente.getSaldoAtual() + diferenca);
+            existente.setSaldoAtual(saldoAtual + diferenca);
         }
         if (dadosAtualizados.getDiaFechamento() != null) {
+            validarDia(dadosAtualizados.getDiaFechamento(), "fechamento");
             existente.setDiaFechamento(dadosAtualizados.getDiaFechamento());
         }
         if (dadosAtualizados.getDiaVencimento() != null) {
+            validarDia(dadosAtualizados.getDiaVencimento(), "vencimento");
             existente.setDiaVencimento(dadosAtualizados.getDiaVencimento());
         }
 
@@ -83,17 +92,12 @@ public class BancoService {
     public Banco ajustarDatasFatura(UUID id, Integer diaFechamento, Integer diaVencimento) {
         Banco banco = buscarPorId(id);
 
-        if (diaFechamento != null && (diaFechamento < 1 || diaFechamento > 31)) {
-            throw new IllegalArgumentException("O dia de fechamento deve estar entre 1 e 31.");
-        }
-        if (diaVencimento != null && (diaVencimento < 1 || diaVencimento > 31)) {
-            throw new IllegalArgumentException("O dia de vencimento deve estar entre 1 e 31.");
-        }
-
         if (diaFechamento != null) {
+            validarDia(diaFechamento, "fechamento");
             banco.setDiaFechamento(diaFechamento);
         }
         if (diaVencimento != null) {
+            validarDia(diaVencimento, "vencimento");
             banco.setDiaVencimento(diaVencimento);
         }
 
@@ -103,8 +107,17 @@ public class BancoService {
     @Transactional
     public void deletarBanco(UUID id) {
         if (!bancoRepository.existsById(id)) {
-            throw new RuntimeException("Banco/Conta não encontrado.");
+            throw new NoSuchElementException("Banco/Conta não encontrado.");
+        }
+        if (transacaoRepository.existsByBancoId(id)) {
+            throw new IllegalStateException("Não é possível excluir este banco pois existem transações vinculadas a ele.");
         }
         bancoRepository.deleteById(id);
+    }
+
+    private void validarDia(Integer dia, String nomeCampo) {
+        if (dia < 1 || dia > 31) {
+            throw new IllegalArgumentException("O dia de " + nomeCampo + " deve estar entre 1 e 31.");
+        }
     }
 }

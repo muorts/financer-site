@@ -8,11 +8,33 @@ interface CardTransacaoProps {
   categoria: string;
   data: string;
   bancoNome?: string;
+  metodoPagamento?: string;
+  parcelas?: string;
   onDelete?: (id: string) => void;
 }
 
-export function CardTransacao({ id, tipo, titulo, valor, categoria, data, bancoNome, onDelete }: CardTransacaoProps) {
+const LABELS_METODO: Record<string, string> = {
+  PIX: 'Pix',
+  DEBITO: 'Débito',
+  CREDITO: 'Crédito',
+};
+
+export function CardTransacao({
+  id,
+  tipo,
+  titulo,
+  valor,
+  categoria,
+  data,
+  bancoNome,
+  metodoPagamento,
+  parcelas,
+  onDelete,
+}: CardTransacaoProps) {
   const isEntrada = tipo === 'entrada';
+  const metodoFormatado = metodoPagamento
+    ? LABELS_METODO[metodoPagamento.toUpperCase()] || metodoPagamento
+    : null;
   
   return (
     <div className="flex items-center justify-between p-4 transition-colors border bg-surface/40 border-border/80 rounded-2xl hover:bg-surface/70">
@@ -35,6 +57,12 @@ export function CardTransacao({ id, tipo, titulo, valor, categoria, data, bancoN
               <>
                 <span>•</span>
                 <span>{bancoNome}</span>
+              </>
+            )}
+            {metodoFormatado && (
+              <>
+                <span>•</span>
+                <span>{parcelas ? `${metodoFormatado} (${parcelas})` : metodoFormatado}</span>
               </>
             )}
             <span>•</span>

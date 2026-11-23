@@ -2,11 +2,14 @@ package com.murilo.api.service;
 
 import com.murilo.api.model.dashboard.Categoria;
 import com.murilo.api.repository.dashboard.CategoriaRepository;
+import com.murilo.api.repository.dashboard.MetaOrcamentoRepository;
+import com.murilo.api.repository.dashboard.TransacaoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -14,6 +17,8 @@ import java.util.UUID;
 public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
+    private final TransacaoRepository transacaoRepository;
+    private final MetaOrcamentoRepository metaOrcamentoRepository;
 
     public List<Categoria> listarCategorias(String tipo) {
         if (tipo != null && !tipo.isBlank()) {
@@ -24,7 +29,7 @@ public class CategoriaService {
 
     public Categoria buscarPorId(UUID id) {
         return categoriaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada."));
+                .orElseThrow(() -> new NoSuchElementException("Categoria não encontrada."));
     }
 
     @Transactional
@@ -67,7 +72,10 @@ public class CategoriaService {
     @Transactional
     public void deletarCategoria(UUID id) {
         if (!categoriaRepository.existsById(id)) {
-            throw new RuntimeException("Categoria não encontrada.");
+            throw new NoSuchElementException("Categoria não encontrada.");
+        }
+        if (transacaoRepository.existsByCategoriaId(id) || metaOrcamentoRepository.existsByCategoriaId(id)) {
+            throw new IllegalStateException("Não é possível excluir esta categoria pois existem transações ou metas vinculadas a ela.");
         }
         categoriaRepository.deleteById(id);
     }

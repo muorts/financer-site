@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { X, Target, Tag, Save, Check } from 'lucide-react';
@@ -16,10 +18,18 @@ export function ModalNovaMeta({ isOpen, onClose, categorias, onSalvar }: ModalNo
   const [dropdownAberto, setDropdownAberto] = useState(false);
   const [valor, setValor] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [erroMsg, setErroMsg] = useState('');
 
   if (!isOpen) return null;
 
+  const handleFechar = () => {
+    setErroMsg('');
+    setDropdownAberto(false);
+    onClose();
+  };
+
   const handleConfirmar = async () => {
+    setErroMsg('');
     const limite = parseValorMonetario(valor);
     if (!categoriaSelecionada || limite <= 0) return;
 
@@ -28,7 +38,9 @@ export function ModalNovaMeta({ isOpen, onClose, categorias, onSalvar }: ModalNo
       await onSalvar(categoriaSelecionada.id, limite);
       setCategoriaSelecionada(null);
       setValor('');
-      onClose();
+      handleFechar();
+    } catch (erro) {
+      setErroMsg(erro instanceof Error ? erro.message : 'Não foi possível salvar a meta.');
     } finally {
       setSalvando(false);
     }
@@ -48,7 +60,8 @@ export function ModalNovaMeta({ isOpen, onClose, categorias, onSalvar }: ModalNo
           </div>
           
           <button 
-            onClick={onClose}
+            type="button"
+            onClick={handleFechar}
             className="p-2 transition-colors rounded-lg text-gray-400 hover:text-white hover:bg-border/50"
           >
             <X className="w-5 h-5" />
@@ -127,20 +140,28 @@ export function ModalNovaMeta({ isOpen, onClose, categorias, onSalvar }: ModalNo
             </div>
           </div>
 
+          {erroMsg && (
+            <div className="p-3 text-sm font-medium text-danger bg-danger/10 border border-danger/30 rounded-xl">
+              {erroMsg}
+            </div>
+          )}
+
         </div>
 
         {/* Rodapé do Modal (Botões) */}
         <div className="flex items-center justify-end gap-3 p-5 border-t border-border/50 bg-[#18181b]/50 rounded-b-2xl">
           <button 
-            onClick={onClose}
+            type="button"
+            onClick={handleFechar}
             className="px-5 py-2.5 text-sm font-medium transition-colors text-gray-400 hover:text-white"
           >
             Cancelar
           </button>
           <button 
+            type="button"
             onClick={handleConfirmar}
             disabled={salvando || !categoriaSelecionada || parseValorMonetario(valor) <= 0}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-[0_0_15px_rgba(251,169,76,0.3)] disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-lg shadow-brand/25 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {salvando ? 'Salvando...' : 'Salvar Meta'}

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,6 +16,10 @@ public interface TransacaoRepository extends JpaRepository<Transacao, UUID> {
     // Lista todas as transações de um mês/ano da mais recente para a mais antiga
     @Query("SELECT t FROM Transacao t WHERE MONTH(t.data) = :mes AND YEAR(t.data) = :ano ORDER BY t.data DESC")
     List<Transacao> listarPorMesEAno(@Param("mes") int mes, @Param("ano") int ano);
+
+    // Lista transações que movimentam saldo (exceto crédito) anteriores a uma data para compor o saldo acumulado
+    @Query("SELECT t FROM Transacao t WHERE t.data < :dataLimite AND UPPER(COALESCE(t.metodoPagamento, 'PIX')) <> 'CREDITO'")
+    List<Transacao> listarAnterioresADataSemCredito(@Param("dataLimite") LocalDate dataLimite);
 
     // 1. Soma todo o dinheiro que ENTROU em um mês/ano específico
     @Query("SELECT COALESCE(SUM(t.valor), 0.0) FROM Transacao t WHERE t.tipo = 'ENTRADA' AND MONTH(t.data) = :mes AND YEAR(t.data) = :ano")
@@ -45,13 +50,18 @@ public interface TransacaoRepository extends JpaRepository<Transacao, UUID> {
     List<Object[]> agruparPorTipoECategoria(@Param("tipo") String tipo, @Param("mes") int mes, @Param("ano") int ano);
 
     // 7. Faturas: Busca lançamentos no cartão de crédito de um banco para um mês/ano de fatura
-    @Query("SELECT t FROM Transacao t WHERE t.banco.id = :bancoId AND t.metodoPagamento = 'CREDITO' AND t.mesFatura = :mesFatura AND t.anoFatura = :anoFatura ORDER BY t.data DESC")
+    @Query("SELECT t FROM Transacao t WHERE t.banco.id = :bancoId AND t.tipo = 'SAIDA' AND t.metodoPagamento = 'CREDITO' AND t.mesFatura = :mesFatura AND t.anoFatura = :anoFatura ORDER BY t.data DESC")
     List<Transacao> buscarLancamentosFatura(@Param("bancoId") UUID bancoId, @Param("mesFatura") int mesFatura, @Param("anoFatura") int anoFatura);
 
     // 8. Faturas: Soma o valor total da fatura de um banco em um mês/ano
-    @Query("SELECT COALESCE(SUM(t.valor), 0.0) FROM Transacao t WHERE t.banco.id = :bancoId AND t.metodoPagamento = 'CREDITO' AND t.mesFatura = :mesFatura AND t.anoFatura = :anoFatura")
+    @Query("SELECT COALESCE(SUM(t.valor), 0.0) FROM Transacao t WHERE t.banco.id = :bancoId AND t.tipo = 'SAIDA' AND t.metodoPagamento = 'CREDITO' AND t.mesFatura = :mesFatura AND t.anoFatura = :anoFatura")
     Double somarFaturaPorBanco(@Param("bancoId") UUID bancoId, @Param("mesFatura") int mesFatura, @Param("anoFatura") int anoFatura);
 
     // 9. Busca todas as parcelas de uma mesma compra parcelada
     List<Transacao> findByGrupoParcelamentoId(UUID grupoParcelamentoId);
+
+    // 10. Verificações de vínculo antes de excluir Categoria ou Banco
+    boolean existsByCategoriaId(UUID categoriaId);
+
+    boolean existsByBancoId(UUID bancoId);
 }

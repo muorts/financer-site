@@ -134,6 +134,24 @@ public class DashboardController {
             }
         }
 
+        // Soma as movimentações (PIX/Débito) anteriores ao 1º dia do mês selecionado
+        // para que o patrimônio inicial do gráfico reflita o saldo acumulado real
+        LocalDate inicioMes = LocalDate.of(ano, mes, 1);
+        List<Transacao> transacoesAnteriores = transacaoRepository.listarAnterioresADataSemCredito(inicioMes);
+        for (Transacao t : transacoesAnteriores) {
+            if (bancoId != null && (t.getBanco() == null || !bancoId.equals(t.getBanco().getId()))) {
+                continue;
+            }
+            double v = t.getValor() != null ? t.getValor() : 0.0;
+            double sinal = "ENTRADA".equalsIgnoreCase(t.getTipo()) ? 1.0 : -1.0;
+            baseTotal += sinal * v;
+
+            boolean isReserva = t.getBanco() != null && "RESERVA".equalsIgnoreCase(t.getBanco().getTipo());
+            if (!isReserva) {
+                baseLiquido += sinal * v;
+            }
+        }
+
         int ultimoDia = YearMonth.of(ano, mes).lengthOfMonth();
         int[] marcos = {1, 10, 20, ultimoDia};
         String mesNome = MESES_CURTOS[Math.max(0, Math.min(11, mes - 1))];
@@ -172,15 +190,15 @@ public class DashboardController {
         if (cor == null) {
             return new String[]{"text-gray-400", "bg-gray-400"};
         }
+        // Alinhado exatamente com as classes estáticas de src/lib/util.ts (getClassesCor)
+        // para garantir que o Tailwind v4 gere todas as classes no bundle do frontend.
         return switch (cor.toLowerCase()) {
-            case "emerald", "green", "success" -> new String[]{"text-success", "bg-success"};
+            case "emerald", "green", "success" -> new String[]{"text-emerald-400", "bg-emerald-500"};
             case "purple" -> new String[]{"text-purple-400", "bg-purple-500"};
             case "blue" -> new String[]{"text-blue-400", "bg-blue-500"};
-            case "orange", "brand" -> new String[]{"text-brand", "bg-brand"};
-            case "red", "danger", "rose" -> new String[]{"text-danger", "bg-danger"};
-            case "yellow", "amber" -> new String[]{"text-amber-400", "bg-amber-500"};
-            case "pink" -> new String[]{"text-pink-400", "bg-pink-500"};
-            case "cyan" -> new String[]{"text-cyan-400", "bg-cyan-500"};
+            case "orange", "brand" -> new String[]{"text-orange-400", "bg-orange-500"};
+            case "red", "danger", "rose" -> new String[]{"text-red-400", "bg-red-500"};
+            case "yellow", "amber" -> new String[]{"text-yellow-400", "bg-yellow-500"};
             default -> new String[]{"text-gray-400", "bg-gray-400"};
         };
     }

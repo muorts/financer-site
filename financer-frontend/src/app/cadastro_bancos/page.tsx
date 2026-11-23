@@ -10,11 +10,13 @@ import {
 import { CardSelecao } from '@/components/ui/CardSelect'; 
 import { SeletorCores } from '@/components/ui/ColorSelect';
 import { NameInput } from '@/components/ui/NameInput';
-import { API_URL, BancoDTO, formatarBRL, parseValorMonetario, getClassesCor } from '@/lib/util';
+import { API_URL, BancoDTO, formatarBRL, parseValorMonetario, getClassesCor, extrairMensagemErro } from '@/lib/util';
 
 export default function CadastroBanco() {
   const [bancos, setBancos] = useState<BancoDTO[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erroMsg, setErroMsg] = useState('');
 
   // Estados do Formulário
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -28,9 +30,15 @@ export default function CadastroBanco() {
   // Carregar bancos do Backend
   useEffect(() => {
     fetch(`${API_URL}/bancos`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await extrairMensagemErro(res, 'Erro ao carregar bancos.'));
+        return res.json();
+      })
       .then((data) => setBancos(Array.isArray(data) ? data : []))
-      .catch((err) => console.error('Erro ao carregar bancos:', err))
+      .catch((err) => {
+        console.error('Erro ao carregar bancos:', err);
+        setErroMsg(err instanceof Error ? err.message : 'Erro ao conectar com o servidor.');
+      })
       .finally(() => setCarregando(false));
   }, []);
 
@@ -46,17 +54,33 @@ export default function CadastroBanco() {
 
   // Função para Salvar (Criar ou Atualizar no PostgreSQL)
   const handleSalvar = async () => {
-    if (!nome.trim()) return;
+    setErroMsg('');
+    if (!nome.trim()) {
+      setErroMsg('Informe o nome do banco/conta.');
+      return;
+    }
+
+    const fechamentoNum = parseInt(diaFechamento, 10);
+    const vencimentoNum = parseInt(diaVencimento, 10);
+    if (isNaN(fechamentoNum) || fechamentoNum < 1 || fechamentoNum > 31) {
+      setErroMsg('O dia de fechamento deve estar entre 1 e 31.');
+      return;
+    }
+    if (isNaN(vencimentoNum) || vencimentoNum < 1 || vencimentoNum > 31) {
+      setErroMsg('O dia de vencimento deve estar entre 1 e 31.');
+      return;
+    }
 
     const payload = {
       nome: nome.trim(),
       tipo: tipoConta.toUpperCase(),
       cor: corSelecionada,
       saldoInicial: parseValorMonetario(saldo),
-      diaFechamento: parseInt(diaFechamento, 10) || 3,
-      diaVencimento: parseInt(diaVencimento, 10) || 10,
+      diaFechamento: fechamentoNum,
+      diaVencimento: vencimentoNum,
     };
 
+    setSalvando(true);
     try {
       if (editandoId) {
         const res = await fetch(`${API_URL}/bancos/${editandoId}`, {
@@ -68,6 +92,8 @@ export default function CadastroBanco() {
           const bancoAtualizado: BancoDTO = await res.json();
           setBancos(bancos.map((b) => (b.id === editandoId ? bancoAtualizado : b)));
           resetarFormulario();
+        } else {
+          setErroMsg(await extrairMensagemErro(res, 'Não foi possível atualizar o banco.'));
         }
       } else {
         const res = await fetch(`${API_URL}/bancos`, {
@@ -79,14 +105,20 @@ export default function CadastroBanco() {
           const novoBanco: BancoDTO = await res.json();
           setBancos([...bancos, novoBanco]);
           resetarFormulario();
+        } else {
+          setErroMsg(await extrairMensagemErro(res, 'Não foi possível cadastrar o banco.'));
         }
       }
     } catch (erro) {
       console.error('Erro ao salvar banco:', erro);
+      setErroMsg('Erro de conexão com o servidor.');
+    } finally {
+      setSalvando(false);
     }
   };
 
   const handleEditar = (banco: BancoDTO) => {
+    setErroMsg('');
     setEditandoId(banco.id);
     setNome(banco.nome);
     setTipoConta(banco.tipo?.toLowerCase() === 'reserva' ? 'reserva' : 'giro');
@@ -97,14 +129,18 @@ export default function CadastroBanco() {
   };
 
   const handleExcluir = async (id: string) => {
+    setErroMsg('');
     try {
       const res = await fetch(`${API_URL}/bancos/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setBancos(bancos.filter((b) => b.id !== id));
         if (editandoId === id) resetarFormulario();
+      } else {
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível excluir o banco.'));
       }
     } catch (erro) {
       console.error('Erro ao excluir banco:', erro);
+      setErroMsg('Erro de conexão ao excluir o banco.');
     }
   };
 
@@ -261,11 +297,22 @@ export default function CadastroBanco() {
         </div>
       </div>
 
+      {erroMsg && (
+        <div className="p-4 text-sm font-medium text-danger bg-danger/10 border border-danger/30 rounded-xl">
+          {erroMsg}
+        </div>
+      )}
+
       {/* BOTÃO SALVAR */}
       <div className="flex items-center justify-end p-5 border bg-surface/40 border-border/80 rounded-2xl shadow-sm">
-        <button onClick={handleSalvar} className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-[0_0_15px_rgba(var(--brand),0.3)]">
+        <button
+          type="button"
+          onClick={handleSalvar}
+          disabled={salvando}
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-background bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-lg shadow-brand/25 disabled:opacity-50"
+        >
           <Save className="w-4 h-4" />
-          {editandoId ? 'Atualizar Conta' : 'Cadastrar Conta'}
+          {salvando ? 'Salvando...' : editandoId ? 'Atualizar Conta' : 'Cadastrar Conta'}
         </button>
       </div>
     </div>

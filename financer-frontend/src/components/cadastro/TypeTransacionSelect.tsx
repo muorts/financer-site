@@ -9,6 +9,7 @@ export function SeletorTipoTransacao({ tipo, onChange }: SeletorTipoTransacaoPro
   return (
     <div className="flex gap-4 p-1 bg-[#18181b] border border-border rounded-xl">
       <button
+        type="button"
         onClick={() => onChange('entrada')}
         className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all duration-300 ${
           tipo === 'entrada' 
@@ -20,6 +21,7 @@ export function SeletorTipoTransacao({ tipo, onChange }: SeletorTipoTransacaoPro
       </button>
       
       <button
+        type="button"
         onClick={() => onChange('saida')}
         className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all duration-300 ${
           tipo === 'saida' 

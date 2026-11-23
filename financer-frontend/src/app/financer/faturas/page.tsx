@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, CreditCard, Calendar, AlertCircle, 
@@ -10,10 +10,41 @@ import {
 import { InputSelect } from '@/components/ui/InputSelect';
 import { CardDataFatura } from '@/components/financer/CardDataFatura';
 import { ItemFatura } from '@/components/financer/ItemFatura';
+import { ModalExcluirTransacao } from '@/components/financer/ModalExcluirTransacao';
 import { 
-  API_URL, FaturaResumoDTO, NOMES_MESES, NOMES_MESES_CURTOS, 
-  formatarBRL, formatarDataCurta, getClassesCor, getIconePorId 
+  API_URL, FaturaResumoDTO, TransacaoDTO, NOMES_MESES, NOMES_MESES_CURTOS, 
+  formatarBRL, formatarDataCurta, getClassesCor, getIconePorId, extrairMensagemErro 
 } from '@/lib/util';
+
+function calcularStatusFatura(mesFatura: number, anoFatura: number, diaFechamento: number) {
+  const hoje = new Date();
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+  const ultimoDiaAtual = new Date(anoFatura, mesFatura, 0).getDate();
+  const dataFechamento = new Date(anoFatura, mesFatura - 1, Math.min(diaFechamento, ultimoDiaAtual));
+
+  const mesAnterior = mesFatura === 1 ? 12 : mesFatura - 1;
+  const anoAnterior = mesFatura === 1 ? anoFatura - 1 : anoFatura;
+  const ultimoDiaAnterior = new Date(anoAnterior, mesAnterior, 0).getDate();
+  const dataAbertura = new Date(anoAnterior, mesAnterior - 1, Math.min(diaFechamento, ultimoDiaAnterior));
+
+  if (hojeZero >= dataFechamento) {
+    return {
+      label: 'Fatura Fechada',
+      classes: 'text-danger bg-danger/10 border-danger/20',
+    };
+  }
+  if (hojeZero >= dataAbertura) {
+    return {
+      label: 'Fatura Aberta',
+      classes: 'text-brand bg-brand/10 border-brand/20',
+    };
+  }
+  return {
+    label: 'Fatura Futura',
+    classes: 'text-gray-300 bg-white/5 border-border',
+  };
+}
 
 export default function Faturas() {
   const hoje = new Date();
@@ -24,29 +55,48 @@ export default function Faturas() {
   const [bancoSelecionadoId, setBancoSelecionadoId] = useState<string>('');
   const [dropdownBancoAberto, setDropdownBancoAberto] = useState(false);
 
-  // Estado para o modal/bloco de "Ajustar Datas"
+  // Estado para o modal/bloco de "Ajustar Datas" e mensagens de erro
   const [editandoDatas, setEditandoDatas] = useState(false);
   const [novoDiaFechamento, setNovoDiaFechamento] = useState('3');
   const [novoDiaVencimento, setNovoDiaVencimento] = useState('10');
-
-  const carregarFaturas = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/transacoes/faturas?mes=${mes}&ano=${ano}`);
-      if (res.ok) {
-        const lista: FaturaResumoDTO[] = await res.json();
-        setFaturas(Array.isArray(lista) ? lista : []);
-        if (lista.length > 0 && !bancoSelecionadoId) {
-          setBancoSelecionadoId(lista[0].bancoId);
-        }
-      }
-    } catch (erro) {
-      console.error('Erro ao buscar faturas:', erro);
-    }
-  }, [mes, ano, bancoSelecionadoId]);
+  const [erroMsg, setErroMsg] = useState('');
+  const [transacaoParaExcluir, setTransacaoParaExcluir] = useState<TransacaoDTO | null>(null);
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
-    carregarFaturas();
-  }, [carregarFaturas]);
+    let ativo = true;
+
+    async function carregarFaturas() {
+      try {
+        const res = await fetch(`${API_URL}/transacoes/faturas?mes=${mes}&ano=${ano}`);
+        if (!ativo) return;
+
+        if (res.ok) {
+          const lista: FaturaResumoDTO[] = await res.json();
+          if (!ativo) return;
+          const faturasValidas = Array.isArray(lista) ? lista : [];
+          setErroMsg('');
+          setFaturas(faturasValidas);
+          setBancoSelecionadoId((atual) =>
+            faturasValidas.some((f) => f.bancoId === atual)
+              ? atual
+              : (faturasValidas[0]?.bancoId ?? '')
+          );
+        } else {
+          setErroMsg(await extrairMensagemErro(res, 'Não foi possível carregar as faturas.'));
+        }
+      } catch (erro) {
+        if (!ativo) return;
+        console.error('Erro ao buscar faturas:', erro);
+        setErroMsg('Erro de conexão com o servidor.');
+      }
+    }
+
+    void carregarFaturas();
+    return () => {
+      ativo = false;
+    };
+  }, [mes, ano, versao]);
 
   const mudarMes = (delta: number) => {
     let novoMes = mes + delta;
@@ -66,6 +116,7 @@ export default function Faturas() {
 
   const abrirAjusteDatas = () => {
     if (!faturaAtual) return;
+    setErroMsg('');
     setNovoDiaFechamento(String(faturaAtual.diaFechamento ?? 3));
     setNovoDiaVencimento(String(faturaAtual.diaVencimento ?? 10));
     setEditandoDatas(true);
@@ -73,23 +124,59 @@ export default function Faturas() {
 
   const salvarAjusteDatas = async () => {
     if (!faturaAtual) return;
+    setErroMsg('');
+
+    const fechamentoNum = parseInt(novoDiaFechamento, 10);
+    const vencimentoNum = parseInt(novoDiaVencimento, 10);
+    if (isNaN(fechamentoNum) || fechamentoNum < 1 || fechamentoNum > 31) {
+      setErroMsg('O dia de fechamento deve estar entre 1 e 31.');
+      return;
+    }
+    if (isNaN(vencimentoNum) || vencimentoNum < 1 || vencimentoNum > 31) {
+      setErroMsg('O dia de vencimento deve estar entre 1 e 31.');
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/bancos/${faturaAtual.bancoId}/datas-fatura`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          diaFechamento: parseInt(novoDiaFechamento, 10) || 3,
-          diaVencimento: parseInt(novoDiaVencimento, 10) || 10,
+          diaFechamento: fechamentoNum,
+          diaVencimento: vencimentoNum,
         }),
       });
       if (res.ok) {
         setEditandoDatas(false);
-        await carregarFaturas();
+        setVersao((v) => v + 1);
+      } else {
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível atualizar as datas da fatura.'));
       }
     } catch (erro) {
       console.error('Erro ao ajustar datas da fatura:', erro);
+      setErroMsg('Erro de conexão ao salvar as datas.');
     }
   };
+
+  const handleConfirmarExclusao = async (id: string, deletarTodasParcelas: boolean) => {
+    setErroMsg('');
+    try {
+      const query = deletarTodasParcelas ? '?deletarTodasParcelas=true' : '';
+      const res = await fetch(`${API_URL}/transacoes/${id}${query}`, { method: 'DELETE' });
+      if (res.ok) {
+        setVersao((v) => v + 1);
+      } else {
+        setErroMsg(await extrairMensagemErro(res, 'Não foi possível excluir o lançamento.'));
+      }
+    } catch (erro) {
+      console.error('Erro ao excluir lançamento da fatura:', erro);
+      setErroMsg('Erro de conexão ao excluir o lançamento.');
+    }
+  };
+
+  const statusFatura = faturaAtual
+    ? calcularStatusFatura(mes, ano, faturaAtual.diaFechamento || 3)
+    : null;
 
   const nomeMesCurto = NOMES_MESES_CURTOS[mes - 1] || '';
   const nomeMesInteiro = NOMES_MESES[mes - 1] || '';
@@ -133,6 +220,12 @@ export default function Faturas() {
           </button>
         </div>
       </div>
+
+      {erroMsg && (
+        <div className="p-4 text-sm font-medium text-danger bg-danger/10 border border-danger/30 rounded-xl">
+          {erroMsg}
+        </div>
+      )}
 
       {/* BLOCO 2: VISÃO GERAL (CARROSSEL DE BANCOS) */}
       <div className="flex flex-col gap-4">
@@ -296,9 +389,11 @@ export default function Faturas() {
                 <span className="text-4xl font-bold text-white md:text-5xl font-mono">
                   {formatarBRL(faturaAtual.valorTotal)}
                 </span>
-                <span className="flex items-center gap-2 mt-3 text-sm font-medium text-brand bg-brand/10 w-fit px-3 py-1 rounded-full border border-brand/20">
-                  <AlertCircle className="w-4 h-4" /> Fatura Aberta
-                </span>
+                {statusFatura && (
+                  <span className={`flex items-center gap-2 mt-3 text-sm font-medium w-fit px-3 py-1 rounded-full border ${statusFatura.classes}`}>
+                    <AlertCircle className="w-4 h-4" /> {statusFatura.label}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -332,11 +427,13 @@ export default function Faturas() {
                 {faturaAtual.lancamentos.map((transacao) => (
                   <ItemFatura 
                     key={transacao.id}
+                    id={transacao.id}
                     descricao={transacao.descricao}
                     data={formatarDataCurta(transacao.data)}
                     valor={formatarBRL(transacao.valor)}
                     parcelas={transacao.parcelasFormatadas || `${transacao.parcelaAtual || 1}/${transacao.totalParcelas || 1}`}
                     icon={getIconePorId(transacao.categoria?.icone)}
+                    onDelete={() => setTransacaoParaExcluir(transacao)}
                   />
                 ))}
               </div>
@@ -345,6 +442,12 @@ export default function Faturas() {
 
         </div>
       )}
+
+      <ModalExcluirTransacao
+        transacao={transacaoParaExcluir}
+        onClose={() => setTransacaoParaExcluir(null)}
+        onConfirmar={handleConfirmarExclusao}
+      />
 
     </div>
   );
