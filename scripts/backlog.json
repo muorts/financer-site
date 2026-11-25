@@ -1,0 +1,374 @@
+{
+  "repo": "muorts/financer-site",
+  "labels": [
+    {
+      "name": "modulo:vendas",
+      "color": "f97316",
+      "description": "Módulo de Vendas, Estoque, Plataformas e ROI"
+    },
+    {
+      "name": "modulo:financeiro",
+      "color": "10b981",
+      "description": "Módulo Financeiro (Transações, Bancos, Faturas, Metas e Categorias)"
+    },
+    {
+      "name": "modulo:trading",
+      "color": "8b5cf6",
+      "description": "Módulo de Trading, Freebets, Casas e ComprovaBet"
+    },
+    {
+      "name": "modulo:dashboard",
+      "color": "3b82f6",
+      "description": "Dashboard Consolidado e Evolução Patrimonial"
+    },
+    {
+      "name": "backend",
+      "color": "15803d",
+      "description": "API Java Spring Boot e banco PostgreSQL"
+    },
+    {
+      "name": "frontend",
+      "color": "0ea5e9",
+      "description": "Interface Next.js, React e Tailwind CSS"
+    },
+    {
+      "name": "pwa-ux",
+      "color": "ec4899",
+      "description": "Progressive Web App (iOS/Mobile), responsividade e experiência de uso"
+    },
+    {
+      "name": "seguranca",
+      "color": "b91c1c",
+      "description": "Autenticação, CORS, proteção de credenciais e hardening"
+    },
+    {
+      "name": "infra-devops",
+      "color": "64748b",
+      "description": "Docker, Self-Hosting, CI/CD e organização do repositório"
+    },
+    {
+      "name": "tipo:feature",
+      "color": "22c55e",
+      "description": "Nova funcionalidade"
+    },
+    {
+      "name": "tipo:bug",
+      "color": "ef4444",
+      "description": "Correção de bug ou comportamento incorreto"
+    },
+    {
+      "name": "tipo:refactor",
+      "color": "a855f7",
+      "description": "Refatoração técnica e pagamento de dívida técnica"
+    },
+    {
+      "name": "tipo:testes",
+      "color": "14b8a6",
+      "description": "Testes automatizados e garantia de qualidade"
+    },
+    {
+      "name": "tipo:docs",
+      "color": "94a3b8",
+      "description": "Documentação do projeto"
+    },
+    {
+      "name": "prioridade:critica",
+      "color": "dc2626",
+      "description": "Bloqueador ou risco de segurança imediato"
+    },
+    {
+      "name": "prioridade:alta",
+      "color": "ea580c",
+      "description": "Prioridade alta para o próximo marco"
+    },
+    {
+      "name": "prioridade:media",
+      "color": "eab308",
+      "description": "Prioridade média — planejar na sequência"
+    },
+    {
+      "name": "prioridade:baixa",
+      "color": "6b7280",
+      "description": "Melhoria incremental"
+    }
+  ],
+  "milestones": [
+    {
+      "title": "v1.0 - Módulo Vendas & Estoque",
+      "description": "Implementar o backend completo do módulo de Vendas/Estoque e substituir todos os dados mockados das 5 páginas do frontend."
+    },
+    {
+      "title": "v1.1 - Evolução Financeiro & Faturas",
+      "description": "Adicionar edição de transações, quitação de faturas de cartão de crédito, transferências entre contas e filtros avançados."
+    },
+    {
+      "title": "v1.2 - Trading & ComprovaBet",
+      "description": "Corrigir URLs hardcoded e rotas quebradas, finalizar auditoria do ComprovaBet com exportação e consolidar P&L no Dashboard."
+    },
+    {
+      "title": "v1.3 - PWA, UX Mobile & Segurança",
+      "description": "Configurar PWA completo para iOS, corrigir layout mobile, remover credenciais do código, restringir CORS e implementar autenticação."
+    },
+    {
+      "title": "v1.4 - Infraestrutura, Testes & CI/CD",
+      "description": "Criar ambiente Docker para Self-Hosting, suíte de testes automatizados (backend e frontend), pipeline CI e atualização da documentação."
+    }
+  ],
+  "issues": [
+    {
+      "id": "SALES-01",
+      "title": "[Vendas] Criar CRUD de Categorias de Vendas e Plataformas (Backend + Frontend)",
+      "milestone": "v1.0 - Módulo Vendas & Estoque",
+      "labels": [
+        "modulo:vendas",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nAtualmente todo o módulo de **Vendas & Estoque** funciona apenas com dados mockados em memória no frontend e não possui entidades, repositórios nem rotas no `financer-backend`. As páginas de categorias e canais de venda precisam persistir no PostgreSQL antes de conectarmos o cadastro de estoque e vendas.\n\n## Tarefas\n- [ ] Criar entidades JPA `CategoriaVenda` (`id`, `nome`, `cor`, `icone`) e `PlataformaVenda` (`id`, `nome`, `cor`, `icone`) no pacote `com.murilo.api.model.sales`\n- [ ] Criar repositories, services e controllers REST:\n  - `GET/POST/PUT/DELETE /api/vendas/categorias`\n  - `GET/POST/PUT/DELETE /api/vendas/plataformas`\n- [ ] Impedir exclusão com erro `409 Conflict` caso existam itens/vendas vinculados\n- [ ] Integrar `financer-frontend/src/app/sales/categorias/page.tsx` com a API usando `API_URL`\n- [ ] Integrar `financer-frontend/src/app/sales/plataformas/page.tsx` com a API usando `API_URL`\n- [ ] Substituir a lista hardcoded `PLATAFORMAS_DISPONIVEIS` em `ModalStock.tsx` pelos dados reais da API\n\n## Arquivos de referência\n- `financer-frontend/src/app/sales/categorias/page.tsx`\n- `financer-frontend/src/app/sales/plataformas/page.tsx`\n- `financer-frontend/src/components/sales/ModalStock.tsx`\n- `financer-frontend/src/lib/util.ts`\n\n## Critérios de aceite\n- [ ] Categorias e plataformas criadas, editadas ou excluídas persistem após recarregar a página\n- [ ] Tratamento de erro amigável exibido na interface via `extrairMensagemErro`"
+    },
+    {
+      "id": "SALES-02",
+      "title": "[Vendas] Implementar gestão de Estoque e Custos Extras (Backend + Frontend)",
+      "milestone": "v1.0 - Módulo Vendas & Estoque",
+      "labels": [
+        "modulo:vendas",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nA tela `sales/estoque` hoje renderiza `ESTOQUE_INICIAL` hardcoded e `sales/novo_item` ainda tem `console.log` nos seletores de categoria/banco e nenhum envio no botão \"Adicionar ao Estoque\".\n\n## Tarefas\n- [ ] Criar entidades `ItemEstoque` (`id`, `nome`, `condicao` [`NOVO`/`USADO`], `status` [`MANUTENCAO`/`PRONTO`/`ANUNCIADO`/`VENDIDO`], `custoAquisicao`, `dataCompra`, `observacoes`, `categoriaVenda`, `bancoCompra`, relação N:N com `PlataformaVenda`) e `CustoExtraItem` (`id`, `itemEstoque`, `descricao`, `valor`, `data`)\n- [ ] Criar endpoints REST no `financer-backend`:\n  - `GET /api/estoque` (listagem de itens ativos no pátio, com custo total = aquisição + soma dos custos extras)\n  - `POST /api/estoque` (cadastro de novo item)\n  - `PUT /api/estoque/{id}` (edição de nome, status, plataformas anunciadas e observações)\n  - `POST /api/estoque/{id}/custos` (adição de custo de reparo/peça)\n  - `DELETE /api/estoque/{id}`\n- [ ] Integrar `financer-frontend/src/app/sales/novo_item/page.tsx` com seletores reais de categorias, plataformas e bancos + submissão para `POST /api/estoque`\n- [ ] Integrar `financer-frontend/src/app/sales/estoque/page.tsx` substituindo `ESTOQUE_INICIAL` e conectando `ModalCustoExtra` e `ModalEditarItem` aos endpoints\n\n## Arquivos de referência\n- `financer-frontend/src/app/sales/novo_item/page.tsx`\n- `financer-frontend/src/app/sales/estoque/page.tsx`\n- `financer-frontend/src/components/sales/CardStock.tsx`\n- `financer-frontend/src/components/sales/ModalStock.tsx`\n\n## Critérios de aceite\n- [ ] Novo item criado em `/sales/novo_item` aparece imediatamente em `/sales/estoque`\n- [ ] Custos extras somam ao custo total do item e ficam registrados no histórico\n- [ ] Edição de status, observações e plataformas anunciadas persiste no PostgreSQL"
+    },
+    {
+      "id": "SALES-03",
+      "title": "[Vendas] Implementar liquidação de vendas, cálculo de ROI e histórico real",
+      "milestone": "v1.0 - Módulo Vendas & Estoque",
+      "labels": [
+        "modulo:vendas",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nA confirmação de venda em `sales/estoque` apenas remove o item do estado local, e a página `sales/vendas` exibe `VENDAS_INICIAIS` mockado com um bug de datas hardcoded (`mesAtual = '08'`, `anoAtual = '2026'` e `'2026-07-14'`).\n\n## Tarefas\n- [ ] Criar entidade `Venda` (`id`, `itemEstoque`, `plataformaVenda`, `bancoDestino`, `valorVenda`, `taxasFrete`, `custoTotalSnapshot`, `lucroLiquido`, `roiPercentual`, `dataVenda`)\n- [ ] Criar endpoint `POST /api/estoque/{id}/vender` que marca o item como `VENDIDO` e persiste a `Venda` com cálculo de `lucroLiquido = valorVenda - taxasFrete - custoTotal` e `roi = (lucroLiquido / custoTotal) * 100` (tratando divisão por zero)\n- [ ] Criar endpoint `GET /api/vendas` com filtros por período (`mes`/`ano` ou intervalo de datas) e `plataformaId`, retornando também os agregados (faturamento bruto, lucro líquido e ROI médio)\n- [ ] Conectar `ModalConfirmarVenda` em `sales/estoque/page.tsx` ao endpoint de liquidação (incluindo escolha do banco de recebimento e data da venda)\n- [ ] Integrar `financer-frontend/src/app/sales/vendas/page.tsx` com `GET /api/vendas`, removendo `VENDAS_INICIAIS` e corrigindo o filtro de \"Mês Atual\" e \"Últimos 30 dias\" para usar a data real dinâmica\n\n## Arquivos de referência\n- `financer-frontend/src/app/sales/vendas/page.tsx`\n- `financer-frontend/src/app/sales/estoque/page.tsx`\n- `financer-frontend/src/components/sales/ModalStock.tsx`\n- `financer-frontend/src/components/sales/Sale.tsx`\n\n## Critérios de aceite\n- [ ] Liquidar um item no estoque move o item para a tela de Vendas Concluídas\n- [ ] Faturamento bruto, lucro líquido e ROI médio refletem os filtros dinâmicos selecionados"
+    },
+    {
+      "id": "SALES-04",
+      "title": "[Vendas] Integrar movimentações de Estoque/Vendas com Bancos e Dashboard Mensal",
+      "milestone": "v1.0 - Módulo Vendas & Estoque",
+      "labels": [
+        "modulo:vendas",
+        "modulo:dashboard",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nDe acordo com o `README.md`, o objetivo do sistema é isolar o capital de giro de revendas do custo de vida pessoal, mas consolidar os resultados no **Dashboard Mensal**. Hoje o `DashboardController` considera apenas registros da tabela `transacoes`.\n\n## Tarefas\n- [ ] Atualizar saldo do `Banco` automaticamente ao comprar um item de estoque (débito), registrar custo extra (débito) e liquidar uma venda (crédito do valor líquido no banco de destino), garantindo reversão em caso de cancelamento/estorno\n- [ ] Incluir métricas consolidadas de Vendas no `DashboardResumo` (`/api/dashboard/resumo`): lucro líquido de vendas no mês e valor total imobilizado em estoque\n- [ ] Exibir a contribuição de Vendas no Raio-X / cards do Dashboard (`financer-frontend/src/app/page.tsx`) sem misturar com o custo de vida pessoal\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/controller/dashboard/DashboardController.java`\n- `financer-backend/src/main/java/com/murilo/api/model/dashboard/DashboardResumo.java`\n- `financer-frontend/src/app/page.tsx`\n\n## Critérios de aceite\n- [ ] Compra e venda de itens atualizam o saldo real das contas bancárias sem divergência\n- [ ] Dashboard mensal reflete o resultado consolidado mantendo a separação entre Finanças Pessoais e Vendas"
+    },
+    {
+      "id": "FIN-01",
+      "title": "[Financeiro] Implementar edição de transações (incluindo parcelas) no Backend e Frontend",
+      "milestone": "v1.1 - Evolução Financeiro & Faturas",
+      "labels": [
+        "modulo:financeiro",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nAtualmente `TransacaoController` disponibiliza apenas `GET`, `POST` e `DELETE`. Se o usuário errar o valor, categoria, descrição, data ou banco de uma transação, precisa excluir e cadastrar tudo novamente.\n\n## Tarefas\n- [ ] Criar endpoint `PUT /api/transacoes/{id}` no `TransacaoController` e método `@Transactional atualizarTransacao` no `TransacaoService`\n- [ ] Para `PIX` e `DEBITO`: reverter o impacto da transação original no saldo do banco antigo e aplicar o novo valor/tipo no banco atualizado\n- [ ] Para `CREDITO`: permitir editar descrição, categoria e valor (com opção `atualizarTodasParcelas` para compras com `grupoParcelamentoId`)\n- [ ] Recalcular `mesFatura` e `anoFatura` automaticamente se a data ou banco de uma compra no crédito for alterado\n- [ ] Adicionar botão e modal de edição nos cards de `financer/visualizacao_geral` e `financer/faturas`\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/controller/dashboard/TransacaoController.java`\n- `financer-backend/src/main/java/com/murilo/api/service/TransacaoService.java`\n- `financer-frontend/src/app/financer/visualizacao_geral/page.tsx`\n- `financer-frontend/src/app/financer/faturas/page.tsx`\n- `financer-frontend/src/components/financer/CardTransacao.tsx`\n\n## Critérios de aceite\n- [ ] Editar valor ou banco de uma transação PIX/Débito mantém o `saldoAtual` dos bancos consistente\n- [ ] Edição em faturas atualiza o total da fatura e o resumo do mês em tempo real"
+    },
+    {
+      "id": "FIN-02",
+      "title": "[Financeiro] Implementar pagamento/quitação de Fatura de Cartão de Crédito",
+      "milestone": "v1.1 - Evolução Financeiro & Faturas",
+      "labels": [
+        "modulo:financeiro",
+        "modulo:dashboard",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nCompras no `CREDITO` corretamente não debitam o saldo do banco no ato da compra (conforme `TransacaoService.java`), mas atualmente não existe mecanismo para registrar o **pagamento da fatura**. Como resultado, o `saldoAtual` do banco e a evolução patrimonial em `DashboardController.montarEvolucaoMes` nunca descontam o valor pago na fatura do cartão.\n\n## Tarefas\n- [ ] Criar entidade `PagamentoFatura` (`id`, `bancoCartao`, `bancoPagamento`, `mesFatura`, `anoFatura`, `valorPago`, `dataPagamento`) com unicidade por `(bancoCartao, mesFatura, anoFatura)` ou suporte a pagamento parcial\n- [ ] Criar endpoints `POST /api/transacoes/faturas/{bancoId}/pagar` e `DELETE /api/transacoes/faturas/pagamentos/{id}` (estorno)\n- [ ] Ao pagar a fatura, debitar o valor do `bancoPagamento` escolhido e refletir na evolução patrimonial sem contar a despesa em duplicidade no Raio-X de saídas\n- [ ] Incluir status `paga` / `valorPago` no `FaturaResumoResponse`\n- [ ] Adicionar botão \"Pagar Fatura\" e badge \"Fatura Paga\" em `financer-frontend/src/app/financer/faturas/page.tsx`\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/service/TransacaoService.java`\n- `financer-backend/src/main/java/com/murilo/api/dto/response/FaturaResumoResponse.java`\n- `financer-backend/src/main/java/com/murilo/api/controller/dashboard/DashboardController.java`\n- `financer-frontend/src/app/financer/faturas/page.tsx`\n\n## Critérios de aceite\n- [ ] Pagar uma fatura atualiza o status para \"Fatura Paga\" e abate o saldo da conta bancária selecionada\n- [ ] Despesas da fatura não são contabilizadas duas vezes nos gráficos de saídas"
+    },
+    {
+      "id": "FIN-03",
+      "title": "[Financeiro] Criar Transferência entre Contas e Aportes (Giro ↔ Reserva)",
+      "milestone": "v1.1 - Evolução Financeiro & Faturas",
+      "labels": [
+        "modulo:financeiro",
+        "modulo:dashboard",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nEm `DashboardController.java`, o card \"Aportes do Mês\" soma transações do tipo `ENTRADA` em bancos do tipo `RESERVA`. Porém, ao movimentar dinheiro da conta corrente (`GIRO`) para a conta `RESERVA`, lançar como `ENTRADA` infla artificialmente \"Entradas Brutas\" e não debita a conta de origem.\n\n## Tarefas\n- [ ] Criar suporte a tipo `TRANSFERENCIA` (ou entidade/endpoint dedicado `POST /api/transacoes/transferencia`) informando `bancoOrigemId`, `bancoDestinoId`, `valor`, `data` e `descricao`\n- [ ] Debitar `bancoOrigem` e creditar `bancoDestino` atomicamente dentro de `@Transactional`\n- [ ] Ajustar `DashboardController` para que transferências não distorçam `entradasBrutas` e `saidasTotais`, mas contabilizem corretamente `aportesMes` quando o destino for `RESERVA` (e resgates quando a origem for `RESERVA`)\n- [ ] Adicionar opção \"Transferência / Aporte\" em `financer-frontend/src/app/financer/nova_transacao/page.tsx`\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/controller/dashboard/DashboardController.java`\n- `financer-backend/src/main/java/com/murilo/api/service/TransacaoService.java`\n- `financer-frontend/src/app/financer/nova_transacao/page.tsx`\n\n## Critérios de aceite\n- [ ] Transferir R$ 500 de Conta Giro para Reserva reduz Giro em R$ 500, aumenta Reserva em R$ 500 e exibe R$ 500 em \"Aportes do Mês\"\n- [ ] Patrimônio total no gráfico de evolução permanece inalterado durante transferências internas"
+    },
+    {
+      "id": "FIN-04",
+      "title": "[Financeiro] Adicionar busca, filtros avançados e transações recorrentes",
+      "milestone": "v1.1 - Evolução Financeiro & Faturas",
+      "labels": [
+        "modulo:financeiro",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:baixa"
+      ],
+      "body": "## Contexto\nNa tela `financer/visualizacao_geral`, o usuário hoje só consegue filtrar por mês e por \"Todas / Só Entradas / Só Saídas\". Além disso, despesas e receitas fixas (salário, aluguel, assinaturas) precisam ser redigitadas todo mês.\n\n## Tarefas\n- [ ] Expandir `GET /api/transacoes` com filtros opcionais: `busca` (descrição), `categoriaId`, `bancoId`, `metodoPagamento` e `tipo`\n- [ ] Atualizar `financer-frontend/src/components/financer/filters.tsx` e `visualizacao_geral/page.tsx` com campo de busca e filtros combináveis\n- [ ] Modelar transações recorrentes (mensais) com opção de gerar automaticamente os lançamentos do mês ou criar em lote por N meses\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/controller/dashboard/TransacaoController.java`\n- `financer-frontend/src/components/financer/filters.tsx`\n- `financer-frontend/src/app/financer/visualizacao_geral/page.tsx`\n\n## Critérios de aceite\n- [ ] Usuário consegue localizar rapidamente qualquer lançamento por texto, categoria, banco ou método de pagamento\n- [ ] Despesas e receitas fixas podem ser cadastradas como recorrentes sem lançamento manual mensal"
+    },
+    {
+      "id": "TRADE-01",
+      "title": "[Trading] Substituir URLs `localhost:8080` hardcoded por `API_URL` e corrigir rotas quebradas",
+      "milestone": "v1.2 - Trading & ComprovaBet",
+      "labels": [
+        "modulo:trading",
+        "frontend",
+        "tipo:bug",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nDiferente do módulo Financeiro (que já usa `API_URL` de `src/lib/util.ts`), o módulo de Trading ainda possui diversas chamadas `fetch('http://localhost:8080/api/...')` hardcoded, o que quebra completamente ao acessar via rede local, iPhone (PWA) ou túnel Self-Hosting. Além disso, duas páginas de Trading possuem links de retorno para `/trades`, que resulta em 404 (a rota real é `/trading/trades`).\n\n## Tarefas\n- [ ] Substituir todas as ocorrências de `http://localhost:8080/api` por `API_URL` de `@/lib/util` em:\n  - `financer-frontend/src/app/trading/casas/page.tsx`\n  - `financer-frontend/src/app/trading/trades/page.tsx`\n  - `financer-frontend/src/app/trading/nova_operacao/page.tsx`\n  - `financer-frontend/src/components/trades/CasaSelection.tsx`\n  - `financer-frontend/src/components/trades/OperationDetails.tsx`\n  - `financer-frontend/src/components/trades/ListOperations.tsx`\n- [ ] Corrigir `caminhoVoltar=\"/trades\"` para `caminhoVoltar=\"/trading/trades\"` em:\n  - `financer-frontend/src/app/trading/comprovabet/page.tsx`\n  - `financer-frontend/src/app/trading/calculadora/page.tsx`\n- [ ] Garantir tratamento de erro consistente com `extrairMensagemErro` nas requisições de Trading\n\n## Arquivos de referência\n- `financer-frontend/src/lib/util.ts`\n- `financer-frontend/src/app/trading/`\n- `financer-frontend/src/components/trades/`\n\n## Critérios de aceite\n- [ ] Zero ocorrências de `http://localhost:8080` fora de `src/lib/util.ts`\n- [ ] Todos os botões de voltar do módulo Trading navegam para rotas válidas sem 404"
+    },
+    {
+      "id": "TRADE-02",
+      "title": "[Trading] Implementar backend e integração da tela ComprovaBet com exportação de extrato",
+      "milestone": "v1.2 - Trading & ComprovaBet",
+      "labels": [
+        "modulo:trading",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nA classe `ComprovaBetResponse.java` no backend está vazia (apenas esqueleto), a página `trading/comprovabet/page.tsx` possui um array mockado vazio (`CASAS_AUDITORIA = []`) e o botão de download de comprovante em `AcordeaoCasa.tsx` não possui ação.\n\n## Tarefas\n- [ ] Definir e preencher `ComprovaBetResponse.java` com métricas por casa de aposta (`totalInvestido`, `totalRetornado`, `lucroLiquido`, histórico de movimentações/entradas)\n- [ ] Criar endpoint `GET /api/trades/comprovabet` (com filtro opcional por período e casa) agregando os dados reais de `CasaAposta`, `Trade`, `EntradaTrade` e `FreebetVoucher`\n- [ ] Avaliar e incluir registro de depósitos/saques por casa de aposta (se necessário para auditoria completa)\n- [ ] Conectar `financer-frontend/src/app/trading/comprovabet/page.tsx` à API real\n- [ ] Implementar exportação de extrato (CSV e/ou PDF imprimível) nos botões de `AcordeaoCasa.tsx`\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/dto/response/ComprovaBetResponse.java`\n- `financer-backend/src/main/java/com/murilo/api/controller/trades/TradeController.java`\n- `financer-frontend/src/app/trading/comprovabet/page.tsx`\n- `financer-frontend/src/components/trades/AcordeaoCasa.tsx`\n\n## Critérios de aceite\n- [ ] Tela ComprovaBet lista todas as casas com P&L histórico real e tabela de operações\n- [ ] Usuário consegue exportar o extrato detalhado por casa para auditoria"
+    },
+    {
+      "id": "TRADE-03",
+      "title": "[Trading] Integrar P&L de Trades ao Dashboard e controlar visibilidade no Menu",
+      "milestone": "v1.2 - Trading & ComprovaBet",
+      "labels": [
+        "modulo:trading",
+        "modulo:dashboard",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nO commit `1dccdfb` deixou como próximo passo conectar os resultados do módulo de Trades ao Dashboard. Além disso, o bloco do módulo Trading está atualmente comentado em `MenuNavegation.tsx`.\n\n## Tarefas\n- [ ] Incluir o lucro líquido de trades finalizados no mês no cálculo consolidado do `DashboardController` (separado ou somado como categoria \"Trading\" no Raio-X de entradas/saídas)\n- [ ] Definir estratégia de visibilidade do módulo Trading em `MenuNavegation.tsx` (reativar no menu lateral ou controlar via variável `NEXT_PUBLIC_ENABLE_TRADING` / configuração do usuário)\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/controller/dashboard/DashboardController.java`\n- `financer-backend/src/main/java/com/murilo/api/repository/trades/TradeRepository.java`\n- `financer-frontend/src/components/layout/MenuNavegation.tsx`\n\n## Critérios de aceite\n- [ ] Trades finalizados no mês refletem no resumo do Dashboard\n- [ ] Módulo Trading acessível no menu de forma controlada (sem código comentado perdido)"
+    },
+    {
+      "id": "TRADE-04",
+      "title": "[Trading] Padronizar DTOs, validações e tratamento de exceções no backend de Trades",
+      "milestone": "v1.2 - Trading & ComprovaBet",
+      "labels": [
+        "modulo:trading",
+        "backend",
+        "tipo:refactor",
+        "prioridade:baixa"
+      ],
+      "body": "## Contexto\nOs controllers de Trading (`TradeController`, `CasaApostaController`, `FreebetController`) ainda recebem entidades JPA diretamente no `@RequestBody`, fazem `try/catch` manuais com `e.printStackTrace()` e lançam `RuntimeException` genérica em vez de aproveitar o `GlobalExceptionHandler`. Também existem DTOs/classes stub não utilizados (`NovoTradeRequest`, `NovaCasaRequest`, `CalculadoraService`).\n\n## Tarefas\n- [ ] Utilizar DTOs tipados com Bean Validation (`@Valid`, `@NotBlank`, `@PositiveOrZero`) nos endpoints de `TradeController`, `CasaApostaController` e `FreebetController`\n- [ ] Substituir `RuntimeException` por `NoSuchElementException` / `IllegalArgumentException` / `IllegalStateException` e remover `try/catch` redundantes, delegando ao `GlobalExceptionHandler`\n- [ ] Adicionar tratamento para `MethodArgumentNotValidException` no `GlobalExceptionHandler`\n- [ ] Mover lógica de `FreebetController` para um `FreebetService` dedicado (usando query no repository em vez de `findAll().stream().filter(...)`)\n- [ ] Remover a classe vazia `CalculadoraService.java` (já que o cálculo roda em `calculadoraTrade.ts`) ou documentar seu uso caso vá para o backend\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/controller/trades/TradeController.java`\n- `financer-backend/src/main/java/com/murilo/api/controller/trades/FreebetController.java`\n- `financer-backend/src/main/java/com/murilo/api/controller/trades/CasaApostaController.java`\n- `financer-backend/src/main/java/com/murilo/api/service/TradeService.java`\n- `financer-backend/src/main/java/com/murilo/api/service/CalculadoraService.java`\n- `financer-backend/src/main/java/com/murilo/api/exception/GlobalExceptionHandler.java`\n\n## Critérios de aceite\n- [ ] Todas as rotas de Trading validam entrada via DTOs e retornam erros JSON padronizados (`{\"erro\": \"...\"}`)\n- [ ] Nenhuma classe vazia/morta restante no pacote de Trading"
+    },
+    {
+      "id": "SEC-01",
+      "title": "[Segurança] Remover credenciais hardcoded, parametrizar CORS e adotar migrações de banco",
+      "milestone": "v1.3 - PWA, UX Mobile & Segurança",
+      "labels": [
+        "seguranca",
+        "backend",
+        "infra-devops",
+        "tipo:refactor",
+        "prioridade:critica"
+      ],
+      "body": "## Contexto\nEm `financer-backend/src/main/resources/application.properties`, a senha do PostgreSQL (`spring.datasource.password`) está commitada em texto plano, `ddl-auto=update` e `show-sql=true` estão sempre ativos, e todos os controllers possuem `@CrossOrigin(origins = \"*\")`.\n\n## Tarefas\n- [ ] Externalizar `spring.datasource.url`, `username` e `password` via variáveis de ambiente (`${DB_URL}`, `${DB_USERNAME}`, `${DB_PASSWORD}`) com valores padrão seguros apenas para perfil `dev`\n- [ ] Rotacionar a senha do banco PostgreSQL local/host após remoção do repositório\n- [ ] Criar perfis `application-dev.properties` e `application-prod.properties` (desligando `show-sql` em produção)\n- [ ] Centralizar configuração de CORS em uma classe `@Configuration` (`WebMvcConfigurer`) lendo `ALLOWED_ORIGINS` do ambiente e remover `@CrossOrigin(origins = \"*\")` dos controllers\n- [ ] Configurar **Flyway** (ou Liquibase) com migration inicial `V1__init_schema.sql` e trocar `ddl-auto=update` por `validate` em produção\n\n## Arquivos de referência\n- `financer-backend/src/main/resources/application.properties`\n- `financer-backend/pom.xml`\n- `financer-backend/src/main/java/com/murilo/api/controller/`\n\n## Critérios de aceite\n- [ ] Nenhuma credencial sensível versionada no Git\n- [ ] CORS restrito às origens autorizadas do frontend (localhost em dev, domínio Tailscale/Cloudflare em prod)\n- [ ] Evolução de schema controlada por migrations versionadas"
+    },
+    {
+      "id": "SEC-02",
+      "title": "[Segurança] Implementar autenticação (Spring Security + JWT) e proteção de rotas",
+      "milestone": "v1.3 - PWA, UX Mobile & Segurança",
+      "labels": [
+        "seguranca",
+        "backend",
+        "frontend",
+        "tipo:feature",
+        "prioridade:critica"
+      ],
+      "body": "## Contexto\nA arquitetura prevê exposição do sistema via **Self-Hosting (Cloudflare Tunnel / Tailscale)** para instalação do PWA no iOS. Atualmente a API não tem nenhuma camada de autenticação e a entidade `Usuario.java` é apenas um stub contendo `id`.\n\n## Tarefas\n- [ ] Adicionar `spring-boot-starter-security` e biblioteca JWT no `pom.xml`\n- [ ] Expandir entidade `Usuario` (`nome`, `email`, `senhaHash`, `role`, `criadoEm`) e movê-la de `model.trades` para um pacote compartilhado (`model.auth` ou `model.user`)\n- [ ] Criar endpoints `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout` e `GET /api/auth/me` com senhas via `BCryptPasswordEncoder`\n- [ ] Proteger todas as rotas `/api/**` exigindo token válido (preferencialmente via cookie `HttpOnly` + `SameSite` ou header `Authorization: Bearer`)\n- [ ] Criar tela de login no Next.js (`/login`), middleware/guard de rotas privadas e helper centralizado `apiFetch` em `src/lib/util.ts` que trata `401 Unauthorized`\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/model/trades/Usuario.java`\n- `financer-backend/pom.xml`\n- `financer-frontend/src/lib/util.ts`\n- `financer-frontend/src/app/layout.tsx`\n\n## Critérios de aceite\n- [ ] Requisições não autenticadas à API retornam `401 Unauthorized`\n- [ ] Usuário consegue autenticar pela interface web/PWA e manter sessão segura"
+    },
+    {
+      "id": "FIN-05",
+      "title": "[Backend] Migrar campos monetários de `Double` para `BigDecimal`",
+      "milestone": "v1.3 - PWA, UX Mobile & Segurança",
+      "labels": [
+        "backend",
+        "modulo:financeiro",
+        "modulo:trading",
+        "tipo:refactor",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nTodas as entidades financeiras (`Transacao`, `Banco`, `MetaOrcamento`, `Trade`, `EntradaTrade`, `FreebetVoucher`) utilizam `Double` para armazenar valores em reais. Em operações acumuladas (saldo de conta, parcelamento em crédito, somatórios de faturas e P&L), `Double` está sujeito a erros binários de arredondamento.\n\n## Tarefas\n- [ ] Substituir `Double` por `BigDecimal` com `@Column(precision = 14, scale = 2)` nas entidades de `dashboard`, `trades` e futuros módulos de `sales`\n- [ ] Atualizar cálculos de parcelamento, saldo e somatórios nos Services (`TransacaoService`, `BancoService`, `MetaOrcamentoService`, `TradeService`, `DashboardController`) usando `RoundingMode.HALF_UP`\n- [ ] Atualizar DTOs de request/response mantendo serialização numérica compatível com o frontend\n\n## Arquivos de referência\n- `financer-backend/src/main/java/com/murilo/api/model/dashboard/Transacao.java`\n- `financer-backend/src/main/java/com/murilo/api/model/dashboard/Banco.java`\n- `financer-backend/src/main/java/com/murilo/api/model/trades/Trade.java`\n- `financer-backend/src/main/java/com/murilo/api/service/TransacaoService.java`\n\n## Critérios de aceite\n- [ ] Nenhum valor monetário armazenado como `Double`/`double` no backend\n- [ ] Divisão de compras parceladas (ex: R$ 100,00 em 3x) fecha exatamente em R$ 100,00 sem perda de centavos"
+    },
+    {
+      "id": "PWA-01",
+      "title": "[PWA] Configurar `manifest.ts`, ícones iOS, Service Worker e restaurar `next.config.ts`",
+      "milestone": "v1.3 - PWA, UX Mobile & Segurança",
+      "labels": [
+        "pwa-ux",
+        "frontend",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nO `README.md` destaca o formato **Progressive Web App (PWA)** instalável na tela de início do iOS (fullscreen sem barra do Safari), porém atualmente não existe `manifest.json`/`manifest.ts`, não há `apple-touch-icon` nem `appleWebApp` em `layout.tsx`, e o arquivo de configuração do Next.js está renomeado como `next.config.backup.ts`.\n\n## Tarefas\n- [ ] Restaurar `financer-frontend/next.config.ts` a partir de `next.config.backup.ts` (removendo o arquivo `.backup.ts`)\n- [ ] Criar `financer-frontend/src/app/manifest.ts` com `name`, `short_name` (`Fincker`), `display: 'standalone'`, `background_color`, `theme_color` e ícones PNG (`192x192` e `512x512`)\n- [ ] Gerar ícones PNG otimizados em `financer-frontend/public/icons/` (incluindo `apple-touch-icon.png` 180x180)\n- [ ] Configurar `appleWebApp` (`capable: true`, `statusBarStyle: 'black-translucent'`), `viewport` e `themeColor` no `financer-frontend/src/app/layout.tsx`\n- [ ] Implementar Service Worker básico (`public/sw.js`) para registro PWA e página/fallback offline amigável\n\n## Arquivos de referência\n- `financer-frontend/src/app/layout.tsx`\n- `financer-frontend/next.config.backup.ts`\n- `financer-frontend/public/`\n\n## Critérios de aceite\n- [ ] App passa na verificação de instalabilidade PWA do Chrome DevTools / Lighthouse\n- [ ] Ao adicionar à tela inicial no iOS Safari, abre em modo standalone com ícone e barra de status corretos"
+    },
+    {
+      "id": "PWA-02",
+      "title": "[UX/Mobile] Corrigir sobreposição do header fixo mobile e adicionar estados de loading/toast",
+      "milestone": "v1.3 - PWA, UX Mobile & Segurança",
+      "labels": [
+        "pwa-ux",
+        "frontend",
+        "tipo:bug",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nNo mobile, `MenuNavegation.tsx` renderiza uma barra superior fixa (`fixed top-0 h-16 md:hidden`), porém o `<main>` em `layout.tsx` possui apenas `pb-24 md:pb-0 md:pl-64` sem `pt-16 md:pt-0`, fazendo o topo do conteúdo ficar parcialmente escondido atrás do header no celular. Além disso, as telas não possuem skeletons de carregamento (causando flash de `R$ 0,00` antes da API responder) nem sistema unificado de toasts.\n\n## Tarefas\n- [ ] Adicionar `pt-16 md:pt-0` (e suporte a `safe-area-inset-top` para iOS notch/Dynamic Island) no `<main>` em `layout.tsx` e fechar o drawer automaticamente ao navegar entre rotas no mobile\n- [ ] Criar componente reutilizável de Skeleton loading para cards, gráficos e listas\n- [ ] Adicionar feedback visual padronizado via Toast (sucesso/erro) ao salvar, editar ou excluir registros, substituindo `alert()` onde ainda existir\n\n## Arquivos de referência\n- `financer-frontend/src/app/layout.tsx`\n- `financer-frontend/src/components/layout/MenuNavegation.tsx`\n- `financer-frontend/src/app/page.tsx`\n\n## Critérios de aceite\n- [ ] Em viewports mobile (`375px` e `390px`), nenhum cabeçalho de página fica cortado pelo topo fixo\n- [ ] Ações de criação, edição e exclusão exibem feedback claro de carregamento e conclusão"
+    },
+    {
+      "id": "INFRA-01",
+      "title": "[Infra] Criar `docker-compose.yml`, Dockerfiles e organizar higiene do monorepo",
+      "milestone": "v1.4 - Infraestrutura, Testes & CI/CD",
+      "labels": [
+        "infra-devops",
+        "tipo:feature",
+        "prioridade:alta"
+      ],
+      "body": "## Contexto\nO `README.md` descreve o uso de PostgreSQL via Docker e arquitetura Self-Hosting, mas ainda não há arquivos Docker no repositório. Também há arquivos indesejados versionados na raiz (`.DS_Store` e um `package-lock.json` órfão de 92 bytes) e falta um `.gitignore` na raiz do monorepo.\n\n## Tarefas\n- [ ] Criar `.gitignore` na raiz do monorepo ignorando `.DS_Store`, `.env`, `.env.local`, logs e arquivos temporários\n- [ ] Remover `.DS_Store` do rastreamento do Git (`git rm --cached`) e avaliar remoção do `package-lock.json` órfão na raiz\n- [ ] Criar `Dockerfile` multi-stage para `financer-backend` (Maven + Eclipse Temurin JRE 21)\n- [ ] Criar `Dockerfile` multi-stage para `financer-frontend` (Next.js standalone output)\n- [ ] Criar `docker-compose.yml` na raiz orquestrando `postgres` (com volume persistente e healthcheck), `backend` e `frontend`\n- [ ] Criar `.env.example` documentando todas as variáveis necessárias (`DB_*`, `NEXT_PUBLIC_API_URL`, `ALLOWED_ORIGINS`, `JWT_SECRET`)\n\n## Arquivos de referência\n- `README.md`\n- `financer-backend/pom.xml`\n- `financer-frontend/package.json`\n\n## Critérios de aceite\n- [ ] `docker compose up --build` sobe banco, backend e frontend comunicando entre si sem configuração manual extra\n- [ ] `git status` limpo de arquivos de sistema (`.DS_Store`)"
+    },
+    {
+      "id": "TEST-01",
+      "title": "[Qualidade] Criar testes automatizados (Backend e Frontend) e pipeline CI no GitHub Actions",
+      "milestone": "v1.4 - Infraestrutura, Testes & CI/CD",
+      "labels": [
+        "tipo:testes",
+        "backend",
+        "frontend",
+        "infra-devops",
+        "prioridade:media"
+      ],
+      "body": "## Contexto\nO backend possui apenas o teste padrão vazio `BackendFinancerApplicationTests` (além disso, no pacote `com.murilo.backend_financer` diferente do pacote principal `com.murilo.api`), e o frontend não possui testes automatizados para utilitários críticos de cálculo financeiro e trading.\n\n## Tarefas\n- [ ] Corrigir o pacote de `BackendFinancerApplicationTests` para `com.murilo.api` (ou apontar a classe principal)\n- [ ] Criar testes unitários com JUnit 5 + Mockito no backend cobrindo:\n  - `TransacaoService` (PIX/Débito, atualização e estorno de saldo, parcelamento no crédito e virada de mês após `diaFechamento`)\n  - `BancoService` (validação de dias, recálculo de saldo ao editar `saldoInicial`, bloqueio de exclusão com vínculo)\n  - `MetaOrcamentoService` e `TradeService` (cálculo de lucro e gatilho de Freebet)\n- [ ] Configurar Vitest/Jest no `financer-frontend` e testar `src/utils/calculadoraTrade.ts` e `parseValorMonetario` / `formatarBRL` em `src/lib/util.ts`\n- [ ] Criar workflow `.github/workflows/ci.yml` rodando `mvn test` (backend), `npm run lint`, `npm test` e `npm run build` (frontend) em PRs e pushes para `dev`/`main`\n\n## Arquivos de referência\n- `financer-backend/src/test/java/com/murilo/backend_financer/BackendFinancerApplicationTests.java`\n- `financer-frontend/src/utils/calculadoraTrade.ts`\n- `financer-frontend/src/lib/util.ts`\n\n## Critérios de aceite\n- [ ] `./mvnw test` passa 100% sem depender de PostgreSQL externo (ex: H2 em memória ou Testcontainers)\n- [ ] Pipeline CI do GitHub Actions valida automaticamente backend e frontend a cada PR"
+    },
+    {
+      "id": "DOCS-01",
+      "title": "[Docs] Atualizar `README.md` com estrutura real do monorepo, variáveis de ambiente e screenshots",
+      "milestone": "v1.4 - Infraestrutura, Testes & CI/CD",
+      "labels": [
+        "tipo:docs",
+        "prioridade:baixa"
+      ],
+      "body": "## Contexto\nO `README.md` atual contém instruções desatualizadas em relação à estrutura real das pastas (`cd backend` / `cd frontend` em vez de `cd financer-backend` / `cd financer-frontend`), um link de `git clone` com sintaxe markdown quebrada e placeholders de screenshots ainda sem imagens.\n\n## Tarefas\n- [ ] Corrigir comando `git clone https://github.com/muorts/financer-site.git` e caminhos reais das pastas (`financer-backend` e `financer-frontend`)\n- [ ] Documentar todos os módulos (Dashboard, Financeiro, Vendas & Estoque, Trading) e endpoints principais da API\n- [ ] Adicionar seção de configuração de variáveis de ambiente e execução via Docker Compose / Self-Hosting (Tailscale / Cloudflare Tunnel)\n- [ ] Adicionar screenshots atualizados das telas principais (desktop e mobile/PWA)\n\n## Arquivos de referência\n- `README.md`\n\n## Critérios de aceite\n- [ ] Um desenvolvedor consegue clonar e subir o projeto do zero seguindo apenas o `README.md`"
+    }
+  ]
+}
