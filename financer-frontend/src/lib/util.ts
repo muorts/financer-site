@@ -2,7 +2,9 @@ import { ElementType } from 'react';
 import {
   Utensils, Coffee, ShoppingBag, Gamepad2, Car, Smartphone,
   Home, Plane, Heart, Zap, Globe, Target, Swords, Trophy,
-  Flame, Shield, Star, CircleDollarSign, Landmark, Tag
+  Flame, Shield, Star, CircleDollarSign, Landmark, Tag,
+  Store, Monitor, HardDrive, Headphones, Cpu, Watch, Camera,
+  Sparkles, Package, Truck, Users, MessageCircle
 } from 'lucide-react';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
@@ -74,6 +76,55 @@ export interface FaturaResumoDTO {
   diaVencimento: number;
   lancamentos: TransacaoDTO[];
 }
+
+export interface CategoriaVendaDTO {
+  id: string;
+  nome: string;
+  cor: string;
+  icone: string;
+}
+
+export interface PlataformaVendaDTO {
+  id: string;
+  nome: string;
+  cor: string;
+  icone: string;
+}
+
+export interface CustoExtraItemDTO {
+  id: string;
+  descricao: string;
+  valor: number;
+  data: string;
+}
+
+export interface ItemEstoqueDTO {
+  id: string;
+  nome: string;
+  condicao: 'NOVO' | 'USADO' | string;
+  status: 'MANUTENCAO' | 'PRONTO' | 'ANUNCIADO' | 'VENDIDO' | string;
+  custoAquisicao: number;
+  totalCustosExtras: number;
+  custoTotal: number;
+  dataCompra: string;
+  observacoes?: string | null;
+  categoriaVenda?: CategoriaVendaDTO | null;
+  bancoCompra?: BancoDTO | null;
+  plataformas: PlataformaVendaDTO[];
+  custosExtras: CustoExtraItemDTO[];
+}
+
+export interface OpcoesEstoqueDTO {
+  categorias: CategoriaVendaDTO[];
+  plataformas: PlataformaVendaDTO[];
+}
+
+export const PLATAFORMAS_SUGERIDAS = [
+  'OLX',
+  'Mercado Livre',
+  'Facebook Marketplace',
+  'Particular',
+] as const;
 
 export const NOMES_MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -161,6 +212,19 @@ export const MAPA_ICONES: Record<string, ElementType> = {
   dollar: CircleDollarSign,
   landmark: Landmark,
   tag: Tag,
+  store: Store,
+  monitor: Monitor,
+  hardware: HardDrive,
+  headphones: Headphones,
+  bag: ShoppingBag,
+  cpu: Cpu,
+  watch: Watch,
+  camera: Camera,
+  sparkles: Sparkles,
+  package: Package,
+  truck: Truck,
+  users: Users,
+  message: MessageCircle,
 };
 
 export function getIconePorId(id?: string | null) {

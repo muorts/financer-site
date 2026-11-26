@@ -3,6 +3,7 @@ package com.murilo.api.service;
 import com.murilo.api.model.dashboard.Banco;
 import com.murilo.api.repository.dashboard.BancoRepository;
 import com.murilo.api.repository.dashboard.TransacaoRepository;
+import com.murilo.api.repository.sales.ItemEstoqueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ public class BancoService {
 
     private final BancoRepository bancoRepository;
     private final TransacaoRepository transacaoRepository;
+    private final ItemEstoqueRepository itemEstoqueRepository;
 
     public List<Banco> listarTodos() {
         return bancoRepository.findAllByOrderByNomeAsc();
@@ -109,8 +111,8 @@ public class BancoService {
         if (!bancoRepository.existsById(id)) {
             throw new NoSuchElementException("Banco/Conta não encontrado.");
         }
-        if (transacaoRepository.existsByBancoId(id)) {
-            throw new IllegalStateException("Não é possível excluir este banco pois existem transações vinculadas a ele.");
+        if (transacaoRepository.existsByBancoId(id) || itemEstoqueRepository.existsByBancoCompraId(id)) {
+            throw new IllegalStateException("Não é possível excluir este banco pois existem transações ou itens de estoque vinculados a ele.");
         }
         bancoRepository.deleteById(id);
     }
